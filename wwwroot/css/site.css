@@ -1,0 +1,59 @@
+/* Stili personalizzati per i pulsanti */
+.btn-outline-custom-blue {
+    background-color: transparent;
+    border: 1px solid #0d6efd; /* Blu Bootstrap standard */
+    color: #0d6efd;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: 0.25rem;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    text-decoration: none; /* Rimuove la sottolineatura se usato come link */
+}
+
+    .btn-outline-custom-blue:hover {
+        background-color: #0d6efd;
+        color: white;
+    }
+
+.btn-outline-custom-red {
+    background-color: transparent;
+    border: 1px solid #dc3545; /* Rosso Bootstrap standard */
+    color: #dc3545;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: 0.25rem;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+    .btn-outline-custom-red:hover {
+        background-color: #dc3545;
+        color: white;
+    }
+
+.btn-custom-green {
+    background-color: #198754; /* Verde Bootstrap standard */
+    border: 1px solid #198754;
+    color: white;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: 0.25rem;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+    .btn-custom-green:hover {
+        background-color: #157347; /* Verde Bootstrap più scuro */
+        border-color: #146c43;
+        color: white;
+    }
+
+/* Stili aggiuntivi per migliorare l'aspetto */
+.card.shadow {
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,.075);
+}

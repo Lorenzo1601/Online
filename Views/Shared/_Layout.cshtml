@@ -1,0 +1,116 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Online</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Online.styles.css" asp-append-version="true" />
+    <style>
+        /* Stile per centrare la GIF nel modal e assicurarsi che sia responsiva */
+        #easterEggGif {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            margin: 0 auto;
+        }
+        .easter-egg-modal-body {
+            text-align: center; /* Centra l'immagine se è più piccola del contenitore */
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                @* MODIFICA: Aggiunto ID "navbarBrandTitle" per l'easter egg *@
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index" id="navbarBrandTitle">Online</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                        </li>
+                        @* Puoi aggiungere altri elementi di navigazione qui se necessario *@
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    @* NUOVO: Modal per l'Easter Egg *@
+    <div class="modal fade" id="easterEggModal" tabindex="-1" aria-labelledby="easterEggModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="easterEggModalLabel">Stai Sereno</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body easter-egg-modal-body">
+                    @* Sostituisci questo URL con la GIF che preferisci *@
+                    <img id="easterEggGif" src="/images/monkey.gif" alt="Easter Egg GIF" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+  
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const navbarBrand = document.getElementById('navbarBrandTitle');
+            const easterEggModalElement = document.getElementById('easterEggModal');
+            let easterEggModal = null; // Inizializza più tardi dopo che Bootstrap è pronto
+
+            if (easterEggModalElement) {
+                 easterEggModal = new bootstrap.Modal(easterEggModalElement);
+            }
+
+            let clickCount = 0;
+            let clickTimer = null;
+            const requiredClicks = 5;
+            const clickTimeoutDuration = 1500; // Millisecondi (1.5 secondi) per resettare il conteggio
+
+            if (navbarBrand && easterEggModal) {
+                navbarBrand.addEventListener('click', function (event) {
+                    event.preventDefault(); // Previene la navigazione se l'elemento è un link
+
+                    clickCount++;
+                    // console.log('Click count:', clickCount); // Per debug
+
+                    // Resetta il timer ad ogni click
+                    clearTimeout(clickTimer);
+                    clickTimer = setTimeout(function() {
+                        // console.log('Timeout, click count resettato.'); // Per debug
+                        clickCount = 0;
+                    }, clickTimeoutDuration);
+
+                    if (clickCount === requiredClicks) {
+                        // console.log('Easter egg attivato!'); // Per debug
+                        easterEggModal.show();
+                        clickCount = 0; // Resetta dopo l'attivazione
+                        clearTimeout(clickTimer); // Pulisci il timer
+                    }
+                });
+            } else {
+                if (!navbarBrand) console.error("Elemento 'navbarBrandTitle' non trovato.");
+                if (!easterEggModal) console.error("Modal 'easterEggModal' non trovato o Bootstrap non inizializzato correttamente.");
+            }
+        });
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

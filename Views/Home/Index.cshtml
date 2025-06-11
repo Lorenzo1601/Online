@@ -1,0 +1,614 @@
+﻿@model Online.Models.IndexViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Gestione Macchine";
+
+    var openEditModalWithErrorRazor = TempData["OpenEditModal"] as bool? ?? false;
+    Online.Models.MacchinaEditModel modalEditModel;
+
+    if (openEditModalWithErrorRazor)
+    {
+        modalEditModel = new Online.Models.MacchinaEditModel
+        {
+            OriginalNomeMacchina = TempData["EditModel_OriginalNomeMacchina"] as string,
+            OriginalIP_Address = TempData["EditModel_OriginalIP_Address"] as string,
+            NomeMacchina = TempData["EditModel_NomeMacchina"] as string,
+            IP_Address = TempData["EditModel_IP_Address"] as string
+        };
+        TempData.Keep("EditModel_OriginalNomeMacchina");
+        TempData.Keep("EditModel_OriginalIP_Address");
+        TempData.Keep("EditModel_NomeMacchina");
+        TempData.Keep("EditModel_IP_Address");
+    }
+    else
+    {
+        modalEditModel = new Online.Models.MacchinaEditModel();
+    }
+
+    Dictionary<string, string[]> modalValidationErrors = null;
+    var editErrorsJson = TempData["EditErrors_Json"] as string;
+    if (!string.IsNullOrEmpty(editErrorsJson))
+    {
+        try
+        {
+            modalValidationErrors = JsonSerializer.Deserialize<Dictionary<string, string[]>>(editErrorsJson);
+        }
+        catch (JsonException jsonEx)
+        {
+            System.Diagnostics.Debug.WriteLine($"Errore during deserialization of EditErrors_Json: {jsonEx.Message}");
+            modalValidationErrors = new Dictionary<string, string[]>();
+        }
+    }
+    TempData.Keep("EditErrors_Json");
+}
+
+<style>
+    /* Styles for modal header */
+    .modal-header {
+        background-color: #007bff; /* Bootstrap blue */
+        color: white;
+    }
+
+        .modal-header.bg-danger { /* Specific style for danger modal header (delete) */
+            background-color: #dc3545; /* Bootstrap red */
+        }
+
+        .modal-header .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%); /* Makes the 'x' close button white */
+        }
+
+    /* Styles for SVG icons in buttons */
+    .btn-icon svg {
+        width: 1em;
+        height: 1em;
+        vertical-align: -0.125em; /* Good alignment with Bootstrap text */
+        fill: currentColor; /* SVG icon inherits button text color */
+    }
+
+    .btn-icon-text svg { /* For icons with text beside them */
+        margin-right: 0.35rem;
+        vertical-align: -0.125em;
+    }
+
+
+    /* Common base styles for all custom buttons */
+    .btn-outline-custom-blue,
+    .btn-outline-custom-red,
+    .btn-outline-custom-green,
+    .btn-custom-green {
+        padding: 0.375rem 0.75rem; /* Standard Bootstrap padding */
+        font-size: 1rem; /* Standard Bootstrap font size */
+        line-height: 1.5; /* Standard Bootstrap line height */
+        border-radius: 0.25rem; /* Standard Bootstrap rounded corners */
+        transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    /* Outline Blue Button (e.g., Edit) */
+    .btn-outline-custom-blue {
+        background-color: transparent;
+        border: 1px solid #0d6efd;
+        color: #0d6efd;
+    }
+
+        .btn-outline-custom-blue:hover {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+    /* Outline Red Button (e.g., Delete, Cancel in edit modal) */
+    .btn-outline-custom-red {
+        background-color: transparent;
+        border: 1px solid #dc3545;
+        color: #dc3545;
+    }
+
+        .btn-outline-custom-red:hover {
+            background-color: #dc3545;
+            color: white;
+        }
+
+    /* Outline Green Button (e.g., Add Machine, Save Changes in edit modal) */
+    .btn-outline-custom-green {
+        background-color: transparent;
+        border: 1px solid #198754;
+        color: #198754;
+    }
+
+        .btn-outline-custom-green:hover {
+            background-color: #198754;
+            color: white;
+        }
+
+    /* Solid Green Button (if needed elsewhere, e.g., a primary "Add" action) */
+    /* This style is kept in case it's used, but "Add Machine" now uses outline */
+    .btn-custom-green {
+        background-color: #198754;
+        border: 1px solid #198754;
+        color: white;
+    }
+
+        .btn-custom-green:hover {
+            background-color: #157347;
+            border-color: #146c43;
+        }
+
+
+    /* Styles for minimal table */
+    .table-minimal {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+        .table-minimal th,
+        .table-minimal td {
+            border-bottom: 1px solid #dee2e6;
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        .table-minimal thead th {
+            background-color: #f8f9fa;
+            border-bottom-width: 2px;
+            color: #495057;
+            font-weight: 600;
+        }
+
+            .table-minimal thead th.sortable {
+                cursor: pointer;
+                position: relative;
+            }
+
+                .table-minimal thead th.sortable .sort-arrow {
+                    margin-left: 5px;
+                    opacity: 0.5;
+                    font-size: 0.8em;
+                }
+
+                .table-minimal thead th.sortable.sorted .sort-arrow {
+                    opacity: 1;
+                }
+
+        .table-minimal tbody tr:not(.status-offline):hover td {
+            background-color: #f1f1f1 !important;
+        }
+
+        .table-minimal tbody tr.status-offline:hover td {
+            background-color: #ffcdd2 !important;
+        }
+
+        .table-minimal tbody tr.status-offline td {
+            background-color: #ffebee !important;
+        }
+
+        .table-minimal tbody tr td {
+            transition: background-color 0.3s ease-in-out;
+        }
+</style>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3>@ViewData["Title"]</h3>
+                <a asp-action="ExportToCsv" class="btn btn-outline-custom-blue btn-sm btn-icon-text">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-spreadsheet" viewBox="0 0 16 16">
+                        <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z" />
+                        <path d="M2 6h12v2H2zm0 3h12v2H2zm0 3h12v2H2z" />
+                    </svg>
+                    Esporta CSV
+                </a>
+            </div>
+            <table class="table table-hover table-minimal" id="macchineTable">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-column="0" data-sort-type="alpha">Nome Macchina <span class="sort-arrow"></span></th>
+                        <th class="sortable" data-column="1" data-sort-type="ip">Indirizzo IP <span class="sort-arrow"></span></th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="macchineTableBody">
+                    @if (Model.Macchine != null && Model.Macchine.Any())
+                    {
+                        @foreach (var item in Model.Macchine)
+                        {
+                            <tr id="row-@item.NomeMacchina.Replace(" ", "-").Replace('.', '-')-@item.IP_Address.Replace('.', '-')"
+                                data-ip="@item.IP_Address"
+                                data-nome-macchina="@item.NomeMacchina">
+                                <td>@Html.DisplayFor(modelItem => item.NomeMacchina)</td>
+                                <td>@Html.DisplayFor(modelItem => item.IP_Address)</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-custom-blue me-1 edit-macchina-btn btn-icon"
+                                            data-bs-toggle="modal" data-bs-target="#editMacchinaModal"
+                                            data-nome-macchina="@item.NomeMacchina"
+                                            data-ip-address="@item.IP_Address"
+                                            title="Modifica">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                                            <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z" />
+                                        </svg>
+                                    </button>
+
+                                    <form asp-action="Delete" method="post" class="delete-form d-inline"
+                                          data-nome-macchina="@item.NomeMacchina" data-ip-address="@item.IP_Address">
+                                        <input type="hidden" name="nomeMacchina" value="@item.NomeMacchina" />
+                                        <input type="hidden" name="ipAddress" value="@item.IP_Address" />
+                                        @Html.AntiForgeryToken()
+                                        <button type="button" class="btn btn-sm btn-outline-custom-red btn-icon open-delete-modal-btn"
+                                                title="Elimina"
+                                                data-bs-toggle="modal" data-bs-target="#deleteConfirmModal">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" />
+                                                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="3" class="text-center">Nessuna macchina presente.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Aggiungi Nuova Macchina</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create" method="post">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="NuovaMacchina.NomeMacchina" class="form-label"></label>
+                            <input asp-for="NuovaMacchina.NomeMacchina" class="form-control" />
+                            <span asp-validation-for="NuovaMacchina.NomeMacchina" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="NuovaMacchina.IP_Address" class="form-label"></label>
+                            <input asp-for="NuovaMacchina.IP_Address" class="form-control" />
+                            <span asp-validation-for="NuovaMacchina.IP_Address" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-outline-custom-green">Aggiungi Macchina</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            @* Card per Importazione CSV *@
+            <div class="card shadow">
+                @* MODIFICA QUI: Aggiunte classi bg-primary text-white all'header *@
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Importa Macchine da CSV</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="ImportFromCsv" method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label for="csvFile" class="form-label">Seleziona file CSV:</label>
+                            <input type="file" name="csvFile" id="csvFile" class="form-control" accept=".csv" required />
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-outline-custom-blue btn-icon-text">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-upload" viewBox="0 0 16 16">
+                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5" />
+                                    <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z" />
+                                </svg>
+                                Importa CSV
+                            </button>
+                        </div>
+                        <small class="form-text text-muted mt-2 d-block">
+                            Il file CSV deve avere le colonne 'NomeMacchina' e 'IP_Address' (in quest'ordine).
+                        </small>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editMacchinaModal" tabindex="-1" aria-labelledby="editMacchinaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-controller="Home" asp-action="Edit" method="post" id="editMacchinaForm">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editMacchinaModalLabel">Modifica Macchina</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if (openEditModalWithErrorRazor && modalValidationErrors != null && modalValidationErrors.TryGetValue(string.Empty, out var modelErrors))
+                    {
+                        <div class="text-danger mb-3">
+                            <ul>
+                                @foreach (var error in modelErrors)
+                                {
+                                    <li>@error</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                    <input type="hidden" asp-for="@modalEditModel.OriginalNomeMacchina" id="editOriginalNomeMacchina" />
+                    <input type="hidden" asp-for="@modalEditModel.OriginalIP_Address" id="editOriginalIPAddress" />
+
+                    <div class="mb-3">
+                        <label for="editNomeMacchina" class="form-label">Nome Macchina</label>
+                        <input asp-for="@modalEditModel.NomeMacchina" class="form-control" id="editNomeMacchina" />
+                        @if (openEditModalWithErrorRazor && modalValidationErrors != null && modalValidationErrors.TryGetValue("NomeMacchina", out var nomeMacchinaErrors))
+                        {
+                            foreach (var error in nomeMacchinaErrors)
+                            {
+                                <span class="text-danger d-block">@error</span>
+                            }
+                        }
+                        <span asp-validation-for="@modalEditModel.NomeMacchina" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editIPAddress" class="form-label">Indirizzo IP</label>
+                        <input asp-for="@modalEditModel.IP_Address" class="form-control" id="editIPAddress" />
+                        @if (openEditModalWithErrorRazor && modalValidationErrors != null && modalValidationErrors.TryGetValue("IP_Address", out var ipAddressErrors))
+                        {
+                            foreach (var error in ipAddressErrors)
+                            {
+                                <span class="text-danger d-block">@error</span>
+                            }
+                        }
+                        <span asp-validation-for="@modalEditModel.IP_Address" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-custom-red" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-outline-custom-green">Salva Modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">Conferma Eliminazione</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sei sicuro di voler eliminare la macchina:</p>
+                <p><strong id="deleteMachineNameDisplay"></strong> (<strong id="deleteMachineIpDisplay"></strong>)?</p>
+                <p class="text-danger small">Questa azione è irreversibile.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-custom-blue" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-outline-custom-red" id="confirmDeleteButton">Elimina</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        const openEditModalWithErrorJS = @Html.Raw(Json.Serialize(openEditModalWithErrorRazor));
+        const csrfTokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+        const csrfToken = csrfTokenElement ? csrfTokenElement.value : null;
+        if (!csrfToken && document.querySelector('form[method="post"]')) {
+             console.warn("Token CSRF non trovato! Le notifiche o altre azioni POST potrebbero fallire se non gestite diversamente.");
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var editMacchinaModalElement = document.getElementById('editMacchinaModal');
+            var editMacchinaModal = new bootstrap.Modal(editMacchinaModalElement);
+            var editForm = document.getElementById('editMacchinaForm');
+
+            document.querySelectorAll('.edit-macchina-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    const nomeMacchina = this.dataset.nomeMacchina;
+                    const ipAddress = this.dataset.ipAddress;
+
+                    let elOriginalNome = document.getElementById('editOriginalNomeMacchina');
+                    let elOriginalIP = document.getElementById('editOriginalIPAddress');
+                    let elNome = document.getElementById('editNomeMacchina');
+                    let elIP = document.getElementById('editIPAddress');
+
+                    if (elOriginalNome) elOriginalNome.value = nomeMacchina;
+                    if (elOriginalIP) elOriginalIP.value = ipAddress;
+                    if (elNome) elNome.value = nomeMacchina;
+                    if (elIP) elIP.value = ipAddress;
+
+                    editForm.querySelectorAll('.text-danger.d-block').forEach(span => span.remove());
+                    editForm.querySelectorAll('span[data-valmsg-for]').forEach(span => span.textContent = '');
+                    const modelErrorSummary = editForm.querySelector('.modal-body > .text-danger.mb-3');
+                    if(modelErrorSummary) modelErrorSummary.innerHTML = '';
+
+                    editMacchinaModal.show();
+                });
+            });
+
+            var deleteConfirmModalElement = document.getElementById('deleteConfirmModal');
+            var deleteConfirmModal = new bootstrap.Modal(deleteConfirmModalElement);
+            var formToDelete = null;
+
+            document.querySelectorAll('.open-delete-modal-btn').forEach(button => {
+                button.addEventListener('click', function () {
+                    formToDelete = this.closest('form.delete-form');
+                    if (formToDelete) {
+                        const nomeMacchina = formToDelete.dataset.nomeMacchina;
+                        const ipAddress = formToDelete.dataset.ipAddress;
+                        document.getElementById('deleteMachineNameDisplay').textContent = nomeMacchina;
+                        document.getElementById('deleteMachineIpDisplay').textContent = ipAddress;
+                        deleteConfirmModal.show();
+                    }
+                });
+            });
+
+            document.getElementById('confirmDeleteButton').addEventListener('click', function () {
+                if (formToDelete) {
+                    formToDelete.submit();
+                }
+                deleteConfirmModal.hide();
+            });
+
+            window.setTimeout(function () {
+                document.querySelectorAll(".alert-dismissible").forEach(alert => {
+                    if (alert) { new bootstrap.Alert(alert).close(); }
+                });
+            }, 7000);
+
+            if (openEditModalWithErrorJS) {
+                editMacchinaModal.show();
+            }
+
+            const PING_INTERVAL = 10000;
+            const macchineTableBody = document.getElementById('macchineTableBody');
+            let clientMachineStatus = {};
+
+            async function notifyServerOfStatusChange(nomeMacchina, ipAddress, isNowOnline) {
+                if (!csrfToken) { return; }
+                try {
+                    const response = await fetch('/Home/NotifyTelegramOfStatusChange', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': csrfToken
+                        },
+                        body: JSON.stringify({ NomeMacchina: nomeMacchina, IpAddress: ipAddress, IsNowOnline: isNowOnline })
+                    });
+                } catch (error) {
+                }
+            }
+
+            async function checkIpStatus(ipAddress, nomeMacchina, rowId) {
+                const rowElement = document.getElementById(rowId);
+                if (!rowElement) { return; }
+                try {
+                    const pingResponse = await fetch(`/Home/PingIpAddress?ipAddress=${encodeURIComponent(ipAddress)}`);
+                    let currentStatusIsOnline = false;
+                    if (pingResponse.ok) {
+                        const pingData = await pingResponse.json();
+                        currentStatusIsOnline = pingData.reachable;
+                    }
+                    const previousClientStatus = clientMachineStatus[ipAddress];
+                    if (previousClientStatus === undefined || previousClientStatus !== currentStatusIsOnline) {
+                        await notifyServerOfStatusChange(nomeMacchina, ipAddress, currentStatusIsOnline);
+                        clientMachineStatus[ipAddress] = currentStatusIsOnline;
+                    }
+                    if (currentStatusIsOnline) {
+                        rowElement.classList.remove('status-offline');
+                    } else {
+                        rowElement.classList.add('status-offline');
+                    }
+                } catch (error) {
+                    if (rowElement) {
+                        const previousClientStatus = clientMachineStatus[ipAddress];
+                        if (previousClientStatus === undefined || previousClientStatus !== false) {
+                            await notifyServerOfStatusChange(nomeMacchina, ipAddress, false);
+                            clientMachineStatus[ipAddress] = false;
+                        }
+                        rowElement.classList.add('status-offline');
+                    }
+                }
+            }
+
+            function performAllPings() {
+                if (!macchineTableBody) { return; }
+                const rows = macchineTableBody.querySelectorAll('tr[data-ip]');
+                rows.forEach(row => {
+                    const ip = row.dataset.ip;
+                    const nome = row.dataset.nomeMacchina;
+                    const rowId = row.id;
+                    if (ip && nome && rowId) {
+                        checkIpStatus(ip, nome, rowId);
+                    }
+                });
+            }
+
+            if (macchineTableBody && macchineTableBody.querySelectorAll('tr[data-ip]').length > 0) {
+                performAllPings();
+                setInterval(performAllPings, PING_INTERVAL);
+            }
+
+            const table = document.getElementById('macchineTable');
+            if (table) {
+                const headers = table.querySelectorAll('thead th.sortable');
+                const tbody = table.querySelector('tbody');
+
+                headers.forEach(header => {
+                    header.addEventListener('click', () => {
+                        if (!tbody) return;
+                        const columnIndex = parseInt(header.dataset.column, 10);
+                        const sortType = header.dataset.sortType;
+                        const currentIsAscending = header.classList.contains('sorted-asc');
+                        const newIsAscending = !currentIsAscending;
+
+                        headers.forEach(h => {
+                            h.classList.remove('sorted-asc', 'sorted-desc', 'sorted');
+                            const arrowSpan = h.querySelector('.sort-arrow');
+                            if(arrowSpan) arrowSpan.textContent = '';
+                        });
+
+                        header.classList.add('sorted');
+                        const arrowSpanCurrent = header.querySelector('.sort-arrow');
+                        if (newIsAscending) {
+                            header.classList.add('sorted-asc');
+                           if(arrowSpanCurrent) arrowSpanCurrent.textContent = '▲';
+                        } else {
+                            header.classList.add('sorted-desc');
+                            if(arrowSpanCurrent) arrowSpanCurrent.textContent = '▼';
+                        }
+
+                        const rowsArray = Array.from(tbody.querySelectorAll('tr'));
+                        rowsArray.sort((a, b) => {
+                            const cellsA = a.querySelectorAll('td');
+                            const cellsB = b.querySelectorAll('td');
+                            const valA = cellsA.length > columnIndex ? cellsA[columnIndex].textContent.trim() : '';
+                            const valB = cellsB.length > columnIndex ? cellsB[columnIndex].textContent.trim() : '';
+
+                            let comparison = 0;
+                            if (sortType === 'ip') {
+                                const ipAParts = valA.split('.').map(Number);
+                                const ipBParts = valB.split('.').map(Number);
+                                for (let i = 0; i < 4; i++) {
+                                    if (ipAParts[i] < ipBParts[i]) { comparison = -1; break; }
+                                    if (ipAParts[i] > ipBParts[i]) { comparison = 1; break; }
+                                }
+                            } else {
+                                comparison = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+                            }
+                            return newIsAscending ? comparison : -comparison;
+                        });
+                        rowsArray.forEach(row => tbody.appendChild(row));
+                    });
+                });
+            }
+        });
+    </script>
+}
