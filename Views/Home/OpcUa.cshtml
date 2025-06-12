@@ -92,7 +92,24 @@
         color: #f0f0f0;
     }
 
-    /* --- NUOVI STILI PER L'ALBERO DEI NODI --- */
+    /* --- NUOVI STILI PER IL RIQUADRO COLLASSABILE --- */
+    .collapsible-header {
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    #endpoints-toggle-icon {
+        transition: transform 0.3s ease-in-out;
+    }
+
+        #endpoints-toggle-icon.collapsed {
+            transform: rotate(180deg);
+        }
+    /* --- FINE NUOVI STILI --- */
+
+    /* Stili albero nodi */
     #opc-tree ul {
         list-style-type: none;
         padding-left: 25px;
@@ -141,7 +158,7 @@
             color: #5bc0de;
         }
 
-        .node-icon .fa-microchip {
+        .node-icon .fa-cogs {
             color: #6c757d;
         }
 
@@ -156,6 +173,7 @@
         color: #6c757d;
         padding-right: 10px;
         white-space: nowrap;
+        transition: all 0.2s ease;
     }
 
     .status-good {
@@ -168,6 +186,25 @@
         font-weight: bold;
     }
 
+    .value-flash {
+        animation: flash-animation 1s ease-out;
+    }
+
+    @@keyframes flash-animation {
+        0% {
+            background-color: transparent;
+        }
+
+        25% {
+            background-color: #d4edda;
+            transform: scale(1.02);
+        }
+
+        100% {
+            background-color: transparent;
+            transform: scale(1);
+        }
+    }
 </style>
 
 <div class="text-center">
@@ -200,9 +237,11 @@
     </div>
 </div>
 
+<!-- MODIFICA: Aggiunta funzionalità di collasso all'header -->
 <div id="endpoints-container" class="card shadow-sm mt-4">
-    <div class="card-header">
-        Server Trovati (Clicca per navigare)
+    <div class="card-header collapsible-header" id="toggle-endpoints-header">
+        <span>Server Trovati</span>
+        <i class="fas fa-chevron-up" id="endpoints-toggle-icon"></i>
     </div>
     <div class="card-body">
         <div id="endpoints-list"></div>
@@ -224,11 +263,65 @@
     <script>
         $(document).ready(function() {
 
+            let valueUpdateTimer = null;
+            const visibleVariableNodes = new Set();
+            const UPDATE_INTERVAL = 5000;
+
+            function startValueUpdater() {
+                stopValueUpdater();
+                valueUpdateTimer = setInterval(updateVisibleNodeValues, UPDATE_INTERVAL);
+            }
+
+            function stopValueUpdater() {
+                if (valueUpdateTimer) {
+                    clearInterval(valueUpdateTimer);
+                    valueUpdateTimer = null;
+                }
+                visibleVariableNodes.clear();
+            }
+
+            function updateVisibleNodeValues() {
+                const activeEndpoint = $('#endpoints-list .endpoint-item.active').data('endpoint-url');
+                if (!activeEndpoint || visibleVariableNodes.size === 0) {
+                    return;
+                }
+
+                $.ajax({
+                    url: '@Url.Action("ReadValues", "OpcUa")',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        endpointUrl: activeEndpoint,
+                        nodeIds: Array.from(visibleVariableNodes)
+                    }),
+                    success: function(data) {
+                        $.each(data, function(i, item) {
+                            const $details = $('li[data-node-id="' + item.nodeId + '"]').find('.node-details');
+                            if ($details.length > 0) {
+                                var statusClass = item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
+                                var newHtml = `Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`;
+
+                                if ($details.html() !== newHtml) {
+                                    $details.html(newHtml);
+                                    $details.addClass('value-flash').one('animationend', function() {
+                                        $(this).removeClass('value-flash');
+                                    });
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+
             function discoverEndpoints(ip, port) {
+                stopValueUpdater();
                 $('#spinner').css('display', 'inline-block');
                 $('#error-message').hide();
                 $('#endpoints-list').empty();
                 $('#opc-tree').empty();
+                // Assicurati che il pannello sia visibile quando cerchi nuovi server
+                $('#endpoints-container .card-body').slideDown();
+                $('#endpoints-toggle-icon').removeClass('collapsed');
                 $('#endpoints-container').hide();
 
                 $.ajax({
@@ -237,7 +330,7 @@
                     data: { ipAddress: ip, port: port },
                     success: function(data) {
                         if (data.length === 0) {
-                            $('#endpoints-list').html('<div class="alert alert-warning">Nessun server trovato a questo indirizzo.</div>');
+                            $('#endpoints-list').html('<div class="alert alert-warning">Nessun server trovato.</div>');
                         } else {
                             $.each(data, function(i, item) {
                                 var $item = $('<div class="endpoint-item" data-endpoint-url="' + item.endpointUrl + '"></div>');
@@ -250,18 +343,16 @@
                         $('#spinner').hide();
                     },
                     error: function(xhr) {
-                        var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto durante la scoperta.";
+                        var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto.";
                         $('#error-message').text(msg).show();
                         $('#spinner').hide();
                     }
                 });
             }
 
-            // --- FUNZIONE BROWSE AGGIORNATA PER LA NUOVA GRAFICA ---
             function browseNode(endpointUrl, nodeId, element) {
                 $('#spinner').css('display', 'inline-block');
                 $('#error-message').hide();
-
                 var isExpanding = element.is('li');
 
                 $.ajax({
@@ -281,22 +372,22 @@
                                 var $li = $('<li></li>').attr('data-node-id', item.nodeId);
                                 var $row = $('<div class="tree-item-row"></div>');
 
-                                // Icona per espandere/collassare (freccia)
                                 if (item.hasChildren) {
                                     $row.append('<i class="node-toggle-icon fa-solid fa-chevron-right"></i>');
                                 } else {
                                     $row.append('<span class="node-toggle-icon"></span>');
                                 }
 
-                                // Icona del tipo di nodo (cartella/tag)
-                                var iconClass = 'fa-solid fa-microchip'; // Default
+                                var iconClass = 'fa-solid fa-question-circle';
                                 if (item.nodeClass === 'Object') iconClass = 'fa-solid fa-folder';
                                 if (item.nodeClass === 'Variable') iconClass = 'fa-solid fa-tag';
+                                if (item.nodeClass === 'Method') iconClass = 'fa-solid fa-cogs';
                                 $row.append('<span class="node-icon"><i class="' + iconClass + '"></i></span>');
 
                                 $row.append($('<span class="node-name"></span>').text(item.displayName));
 
-                                if (item.value !== null) {
+                                if (item.nodeClass === 'Variable') {
+                                    visibleVariableNodes.add(item.nodeId);
                                     var statusClass = item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
                                     $row.append($('<span class="node-details"></span>').html(`Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`));
                                 }
@@ -312,7 +403,7 @@
                         $('#spinner').hide();
                     },
                     error: function(xhr) {
-                        var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto durante la navigazione.";
+                        var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto.";
                          if(isExpanding){
                             element.find('.node-toggle-icon').toggleClass('expanded', false);
                         } else {
@@ -324,21 +415,20 @@
                 });
             }
 
+            // --- GESTIONE DEI CLICK ---
             $('#discoverBtn').click(function() {
                 var ipAddress = $('#opcServerIp').val();
                 var port = $('#opcServerPort').val();
-                if (!ipAddress) {
-                    alert("Inserisci l'indirizzo IP di un server.");
-                    return;
-                }
                 discoverEndpoints(ipAddress, port);
             });
 
             $('#endpoints-list').on('click', '.endpoint-item', function() {
+                stopValueUpdater();
                 $('.endpoint-item').removeClass('active');
                 $(this).addClass('active');
                 var endpointUrl = $(this).data('endpoint-url');
                 browseNode(endpointUrl, null, $('#opc-tree'));
+                startValueUpdater();
             });
 
             $('#opc-tree').on('click', '.node-toggle-icon', function() {
@@ -356,10 +446,19 @@
                 $icon.toggleClass('expanded');
 
                 if ($childrenUl.length > 0) {
+                    $childrenUl.find('li').each(function() {
+                        visibleVariableNodes.delete($(this).data('node-id'));
+                    });
                     $childrenUl.remove();
                 } else {
                     browseNode(activeEndpoint, nodeId, $li);
                 }
+            });
+
+            // NUOVO: Click sull'header per nascondere/mostrare il pannello
+            $('#toggle-endpoints-header').on('click', function() {
+                $(this).next('.card-body').slideToggle();
+                $('#endpoints-toggle-icon').toggleClass('collapsed');
             });
         });
     </script>
