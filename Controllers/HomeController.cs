@@ -4,24 +4,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Online.Data;
 using Online.Models;
-using System; // Aggiunto per DateTime
+using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Text.Json;
-using System.Net.NetworkInformation; // Per Ping
-using System.Net.Http;             // Per HttpClient
-using System.Text;                 // Per StringBuilder nell'esportazione CSV
-using System.IO;                   // Per StreamReader nell'importazione CSV
-using Microsoft.AspNetCore.Http;   // Per IFormFile nell'importazione CSV
-using System.Threading;            // Aggiunto per Timer
+using System.Net.NetworkInformation;
+using System.Net.Http;
+using System.Text;
+using System.IO;
+using Microsoft.AspNetCore.Http;
+using System.Threading;
 
 namespace Online.Controllers
 {
-    // Assicurati che questa classe sia definita DENTRO il namespace Online.Controllers
-    // o in un file separato nel namespace Online.Models e poi aggiungi 'using Online.Models;' in cima a questo file.
-    // Per semplicità, la mettiamo qui per ora.
     public class TelegramNotificationRequest
     {
         public string NomeMacchina { get; set; }
@@ -93,13 +90,13 @@ namespace Online.Controllers
                     else
                     {
                         _logger.LogWarning("Fallito invio notifica da coda per {NomeMacchina} ({IpAddress}).",
-                                           requestToProcess.NomeMacchina, requestToProcess.IpAddress);
+                                        requestToProcess.NomeMacchina, requestToProcess.IpAddress);
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Eccezione durante il processamento della notifica Telegram dalla coda per {NomeMacchina} ({IpAddress}).",
-                                     requestToProcess.NomeMacchina, requestToProcess.IpAddress);
+                                        requestToProcess.NomeMacchina, requestToProcess.IpAddress);
                 }
             }
         }
@@ -159,8 +156,8 @@ namespace Online.Controllers
             if (ModelState.IsValid)
             {
                 var macchinaToUpdate = await _context.Macchine
-                                               .AsNoTracking()
-                                               .FirstOrDefaultAsync(m => m.NomeMacchina == editModel.OriginalNomeMacchina && m.IP_Address == editModel.OriginalIP_Address);
+                                                    .AsNoTracking()
+                                                    .FirstOrDefaultAsync(m => m.NomeMacchina == editModel.OriginalNomeMacchina && m.IP_Address == editModel.OriginalIP_Address);
 
                 if (macchinaToUpdate == null)
                 {
@@ -178,13 +175,13 @@ namespace Online.Controllers
                 {
                     _logger.LogInformation("La chiave primaria è cambiata. Procedo con rimozione e aggiunta.");
                     var existingWithNewKey = await _context.Macchine
-                                                     .AsNoTracking()
-                                                     .FirstOrDefaultAsync(m => m.NomeMacchina == editModel.NomeMacchina && m.IP_Address == editModel.IP_Address);
+                                                              .AsNoTracking()
+                                                              .FirstOrDefaultAsync(m => m.NomeMacchina == editModel.NomeMacchina && m.IP_Address == editModel.IP_Address);
 
                     if (existingWithNewKey != null)
                     {
                         _logger.LogWarning("Nuova chiave duplicata durante modifica: {NomeMacchina}, {IPAddress}", editModel.NomeMacchina, editModel.IP_Address);
-                        ModelState.AddModelError(string.Empty, "Una macchina con il nuovo Nome e Indirizzo IP specificati esiste già.");
+                        ModelState.AddModelError(string.Empty, "Una macchina con il novo Nome e Indirizzo IP specificati esiste già.");
                         TempData["ErrorMessage"] = "Una macchina con il nuovo Nome e Indirizzo IP specificati esiste già.";
                         TempData["EditModel_OriginalNomeMacchina"] = editModel.OriginalNomeMacchina;
                         TempData["EditModel_OriginalIP_Address"] = editModel.OriginalIP_Address;
@@ -410,14 +407,21 @@ namespace Online.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        /// <summary>
+        /// Action to return the OPC UA Browser page.
+        /// </summary>
+        public IActionResult OpcUa()
+        {
+            _logger.LogInformation("Caricamento pagina OpcUa.");
+            return View();
+        }
+
         private bool MacchinaExists(string nomeMacchina, string ipAddress) { return _context.Macchine.Any(e => e.NomeMacchina == nomeMacchina && e.IP_Address == ipAddress); }
         public IActionResult Privacy() { return View(); }
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error() { return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier }); }
     }
 
-    // Assicurati che questa classe sia definita DENTRO il namespace Online.Controllers
-    // o in un file separato nel namespace Online.Models e poi aggiungi 'using Online.Models;' in cima a questo file.
     public class StatusChangeNotificationModel
     {
         public string NomeMacchina { get; set; }
@@ -425,8 +429,6 @@ namespace Online.Controllers
         public bool IsNowOnline { get; set; }
     }
 
-    // Assicurati che questa classe statica con il metodo di estensione sia definita DENTRO il namespace Online.Controllers
-    // o in un altro namespace accessibile (es. Online.Extensions) e poi aggiungi l'using appropriato.
     public static class ModelStateExtensions
     {
         public static Dictionary<string, string[]> ToSerializableDictionary(this ModelStateDictionary modelState)

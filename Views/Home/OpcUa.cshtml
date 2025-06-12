@@ -1,0 +1,366 @@
+﻿@{
+    ViewData["Title"] = "OPC UA Browser";
+}
+<!-- Aggiunta di Font Awesome per le icone -->
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+
+<style>
+    /* Stili generali */
+    .opc-connection-form .form-group {
+        margin-right: 15px;
+    }
+
+    .btn-discover-custom {
+        background-color: transparent;
+        border: 2px solid #28a745;
+        color: #28a745;
+        font-weight: bold;
+        transition: all 0.3s ease-in-out;
+        padding: 0.375rem 1.5rem;
+    }
+
+        .btn-discover-custom:hover {
+            background-color: #28a745;
+            color: white;
+        }
+
+    .spinner-dots {
+        display: none;
+        margin-left: 20px;
+        text-align: center;
+    }
+
+        .spinner-dots > div {
+            width: 14px;
+            height: 14px;
+            background-color: #28a745;
+            border-radius: 100%;
+            display: inline-block;
+            animation: sk-bouncedelay 1.4s infinite ease-in-out both;
+        }
+
+        .spinner-dots .bounce1 {
+            animation-delay: -0.32s;
+        }
+
+        .spinner-dots .bounce2 {
+            animation-delay: -0.16s;
+        }
+
+    @@keyframes sk-bouncedelay {
+        0%, 80%, 100% {
+            transform: scale(0);
+        }
+
+        40% {
+            transform: scale(1.0);
+        }
+    }
+
+    /* Stili lista endpoint */
+    #endpoints-container {
+        display: none;
+    }
+
+    .endpoint-item {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        margin-bottom: 5px;
+        cursor: pointer;
+        background-color: #f8f9fa;
+    }
+
+        .endpoint-item:hover {
+            background-color: #e9ecef;
+        }
+
+        .endpoint-item.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+    .endpoint-url {
+        font-size: 0.8em;
+        color: #6c757d;
+    }
+
+    .endpoint-item.active .endpoint-url {
+        color: #f0f0f0;
+    }
+
+    /* --- NUOVI STILI PER L'ALBERO DEI NODI --- */
+    #opc-tree ul {
+        list-style-type: none;
+        padding-left: 25px;
+    }
+
+    #opc-tree li {
+        padding: 4px 0;
+        border: none;
+    }
+
+    .tree-item-row {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 5px;
+        transition: background-color 0.2s ease-in-out;
+    }
+
+        .tree-item-row:hover {
+            background-color: #f1f1f1;
+        }
+
+    .node-toggle-icon {
+        width: 20px;
+        text-align: center;
+        color: #6c757d;
+        cursor: pointer;
+        transition: transform 0.2s ease-in-out;
+    }
+
+        .node-toggle-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+    .node-icon {
+        width: 25px;
+        text-align: center;
+        margin-right: 5px;
+    }
+
+        .node-icon .fa-folder {
+            color: #f0ad4e;
+        }
+
+        .node-icon .fa-tag {
+            color: #5bc0de;
+        }
+
+        .node-icon .fa-microchip {
+            color: #6c757d;
+        }
+
+    .node-name {
+        font-weight: 500;
+        cursor: default;
+    }
+
+    .node-details {
+        margin-left: auto;
+        font-size: 0.9em;
+        color: #6c757d;
+        padding-right: 10px;
+        white-space: nowrap;
+    }
+
+    .status-good {
+        color: #28a745;
+        font-weight: bold;
+    }
+
+    .status-bad {
+        color: #dc3545;
+        font-weight: bold;
+    }
+
+</style>
+
+<div class="text-center">
+    <h1 class="display-4">@ViewData["Title"]</h1>
+</div>
+
+<div class="card shadow-sm mt-4">
+    <div class="card-header">
+        Connessione al Discovery Server
+    </div>
+    <div class="card-body">
+        <div class="d-flex align-items-end opc-connection-form">
+            <div class="form-group flex-grow-1">
+                <label for="opcServerIp" class="mb-1"><strong>Indirizzo IP Server</strong></label>
+                <input type="text" id="opcServerIp" class="form-control" placeholder="es. 172.20.32.10" value="172.20.32.10">
+            </div>
+            <div class="form-group">
+                <label for="opcServerPort" class="mb-1"><strong>Porta</strong></label>
+                <input type="text" id="opcServerPort" class="form-control" placeholder="es. 62841" value="62841" style="max-width: 120px;">
+            </div>
+            <div class="form-group">
+                <button id="discoverBtn" class="btn btn-discover-custom">Trova Server</button>
+            </div>
+            <div id="spinner" class="spinner-dots">
+                <div class="bounce1"></div>
+                <div class="bounce2"></div>
+                <div class="bounce3"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="endpoints-container" class="card shadow-sm mt-4">
+    <div class="card-header">
+        Server Trovati (Clicca per navigare)
+    </div>
+    <div class="card-body">
+        <div id="endpoints-list"></div>
+    </div>
+</div>
+
+<div class="card shadow-sm mt-4">
+    <div class="card-header">
+        Struttura del Server
+    </div>
+    <div class="card-body">
+        <div id="opc-tree"></div>
+    </div>
+</div>
+
+<div id="error-message" class="alert alert-danger mt-3" style="display: none;"></div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+
+            function discoverEndpoints(ip, port) {
+                $('#spinner').css('display', 'inline-block');
+                $('#error-message').hide();
+                $('#endpoints-list').empty();
+                $('#opc-tree').empty();
+                $('#endpoints-container').hide();
+
+                $.ajax({
+                    url: '@Url.Action("Discover", "OpcUa")',
+                    type: 'POST',
+                    data: { ipAddress: ip, port: port },
+                    success: function(data) {
+                        if (data.length === 0) {
+                            $('#endpoints-list').html('<div class="alert alert-warning">Nessun server trovato a questo indirizzo.</div>');
+                        } else {
+                            $.each(data, function(i, item) {
+                                var $item = $('<div class="endpoint-item" data-endpoint-url="' + item.endpointUrl + '"></div>');
+                                $item.append('<strong>' + item.applicationName + '</strong> (' + item.securityMode + ')');
+                                $item.append('<div class="endpoint-url">' + item.endpointUrl + '</div>');
+                                $('#endpoints-list').append($item);
+                            });
+                        }
+                        $('#endpoints-container').show();
+                        $('#spinner').hide();
+                    },
+                    error: function(xhr) {
+                        var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto durante la scoperta.";
+                        $('#error-message').text(msg).show();
+                        $('#spinner').hide();
+                    }
+                });
+            }
+
+            // --- FUNZIONE BROWSE AGGIORNATA PER LA NUOVA GRAFICA ---
+            function browseNode(endpointUrl, nodeId, element) {
+                $('#spinner').css('display', 'inline-block');
+                $('#error-message').hide();
+
+                var isExpanding = element.is('li');
+
+                $.ajax({
+                    url: '@Url.Action("Browse", "OpcUa")',
+                    type: 'POST',
+                    data: { endpointUrl: endpointUrl, nodeId: nodeId },
+                    success: function(data) {
+                        var $ul = $('<ul></ul>');
+                        if (data.length === 0) {
+                            if (isExpanding) {
+                                element.find('.node-toggle-icon').html('').removeClass('fa-solid fa-chevron-right');
+                            } else {
+                                $ul.append('<li>Nessun nodo trovato.</li>');
+                            }
+                        } else {
+                             $.each(data, function(i, item) {
+                                var $li = $('<li></li>').attr('data-node-id', item.nodeId);
+                                var $row = $('<div class="tree-item-row"></div>');
+
+                                // Icona per espandere/collassare (freccia)
+                                if (item.hasChildren) {
+                                    $row.append('<i class="node-toggle-icon fa-solid fa-chevron-right"></i>');
+                                } else {
+                                    $row.append('<span class="node-toggle-icon"></span>');
+                                }
+
+                                // Icona del tipo di nodo (cartella/tag)
+                                var iconClass = 'fa-solid fa-microchip'; // Default
+                                if (item.nodeClass === 'Object') iconClass = 'fa-solid fa-folder';
+                                if (item.nodeClass === 'Variable') iconClass = 'fa-solid fa-tag';
+                                $row.append('<span class="node-icon"><i class="' + iconClass + '"></i></span>');
+
+                                $row.append($('<span class="node-name"></span>').text(item.displayName));
+
+                                if (item.value !== null) {
+                                    var statusClass = item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
+                                    $row.append($('<span class="node-details"></span>').html(`Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`));
+                                }
+                                $li.append($row);
+                                $ul.append($li);
+                            });
+                        }
+                        if(isExpanding){
+                            element.append($ul);
+                        } else {
+                            element.empty().append($ul);
+                        }
+                        $('#spinner').hide();
+                    },
+                    error: function(xhr) {
+                        var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto durante la navigazione.";
+                         if(isExpanding){
+                            element.find('.node-toggle-icon').toggleClass('expanded', false);
+                        } else {
+                            element.empty();
+                        }
+                        $('#error-message').text(msg).show();
+                        $('#spinner').hide();
+                    }
+                });
+            }
+
+            $('#discoverBtn').click(function() {
+                var ipAddress = $('#opcServerIp').val();
+                var port = $('#opcServerPort').val();
+                if (!ipAddress) {
+                    alert("Inserisci l'indirizzo IP di un server.");
+                    return;
+                }
+                discoverEndpoints(ipAddress, port);
+            });
+
+            $('#endpoints-list').on('click', '.endpoint-item', function() {
+                $('.endpoint-item').removeClass('active');
+                $(this).addClass('active');
+                var endpointUrl = $(this).data('endpoint-url');
+                browseNode(endpointUrl, null, $('#opc-tree'));
+            });
+
+            $('#opc-tree').on('click', '.node-toggle-icon', function() {
+                var $icon = $(this);
+                var $li = $icon.closest('li');
+                var nodeId = $li.data('node-id');
+                var $childrenUl = $li.find('> ul');
+                var activeEndpoint = $('#endpoints-list .endpoint-item.active').data('endpoint-url');
+
+                if (!activeEndpoint) {
+                    alert("Seleziona prima un server dalla lista.");
+                    return;
+                }
+
+                $icon.toggleClass('expanded');
+
+                if ($childrenUl.length > 0) {
+                    $childrenUl.remove();
+                } else {
+                    browseNode(activeEndpoint, nodeId, $li);
+                }
+            });
+        });
+    </script>
+}
