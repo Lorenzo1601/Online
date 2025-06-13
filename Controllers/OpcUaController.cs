@@ -1,133 +1,165 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Online.Models; // Assicurati di avere i modelli nello scope
+using Microsoft.Extensions.Logging;
+using Online.Models;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Online.Controllers
 {
-    // --- DEFINIZIONI MANCANTI AGGIUNTE QUI ---
-    public class EndpointViewModel
-    {
-        public string ApplicationName { get; set; }
-        public string EndpointUrl { get; set; }
-        public string SecurityMode { get; set; }
-    }
-
-    public class ReadValuesRequest
-    {
-        public List<string> NodeIds { get; set; }
-    }
-    // --- FINE DEFINIZIONI ---
-
     public class OpcUaController : Controller
     {
         private readonly OpcUaService _opcUaService;
+        private readonly ILogger<OpcUaController> _logger;
+        private readonly IWebHostEnvironment _env;
 
-        public OpcUaController(OpcUaService opcUaService)
+        public OpcUaController(OpcUaService opcUaService, ILogger<OpcUaController> logger, IWebHostEnvironment env)
         {
             _opcUaService = opcUaService;
+            _logger = logger;
+            _env = env;
         }
 
         [HttpPost]
         public async Task<IActionResult> Discover(string ipAddress, string port)
         {
-            if (string.IsNullOrEmpty(ipAddress)) return BadRequest("L'indirizzo del server non può essere vuoto.");
-            string portToUse = string.IsNullOrWhiteSpace(port) ? "4840" : port;
-            string discoveryUrl = $"opc.tcp://{ipAddress.Trim()}:{portToUse.Trim()}";
-
             try
             {
+                var discoveryUrl = $"opc.tcp://{ipAddress}:{port}";
                 var endpoints = await _opcUaService.DiscoverEndpointsAsync(discoveryUrl);
-                var viewModel = endpoints.Select(ep => new EndpointViewModel
-                {
-                    ApplicationName = ep.Server.ApplicationName.Text,
-                    EndpointUrl = ep.EndpointUrl,
-                    SecurityMode = ep.SecurityMode.ToString()
-                }).ToList();
-                return Json(viewModel);
+                return Ok(endpoints);
             }
             catch (Exception ex)
             {
-                return this.StatusCode(500, new { message = $"Errore durante la scoperta: {ex.Message}" });
+                _logger.LogError(ex, "Discovery failed for {ip}:{port}", ipAddress, port);
+                return BadRequest(new { message = $"Discovery failed: {ex.Message}" });
             }
         }
 
         [HttpPost]
         public async Task<IActionResult> Connect(string endpointUrl)
         {
-            if (string.IsNullOrEmpty(endpointUrl)) return BadRequest("L'URL dell'endpoint non può essere vuoto.");
             try
             {
                 await _opcUaService.ConnectAsync(endpointUrl);
-                return Ok(new { message = "Connesso con successo." });
+                return Ok(new { message = "Connected successfully." });
             }
             catch (Exception ex)
             {
-                return this.StatusCode(500, new { message = $"Connessione fallita: {ex.Message}" });
+                _logger.LogError(ex, "Connection failed for endpoint {endpointUrl}", endpointUrl);
+                return BadRequest(new { message = $"Connection failed: {ex.Message}" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Browse(string? nodeId)
+        {
+            try
+            {
+                var nodes = await _opcUaService.BrowseAsync(nodeId);
+                return Ok(nodes);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Browse failed for node {nodeId}", nodeId);
+                return BadRequest(new { message = $"Browse failed: {ex.Message}" });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ReadValues([FromBody] NodeIdRequest request)
+        {
+            try
+            {
+                var values = await _opcUaService.ReadValuesAsync(request.NodeIds);
+                return Ok(values);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to read values.");
+                return BadRequest(new { message = "Failed to read values." });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> StartLogging(string nodeId, string displayName)
+        {
+            try
+            {
+                await _opcUaService.StartLogging(nodeId, displayName);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to start logging for node {nodeId}", nodeId);
+                return BadRequest(new { message = "Failed to start logging." });
+            }
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> StopLogging(string nodeId)
+        {
+            try
+            {
+                await _opcUaService.StopLogging(nodeId);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to stop logging for node {nodeId}", nodeId);
+                return BadRequest(new { message = "Failed to stop logging." });
             }
         }
 
         [HttpGet]
         public IActionResult GetStatus()
         {
-            return Json(new
+            return Ok(new
             {
-                isConnected = _opcUaService.IsConnected,
-                endpointUrl = _opcUaService.ConnectedEndpointUrl
+                IsConnected = _opcUaService.IsConnected,
+                EndpointUrl = _opcUaService.ConnectedEndpointUrl
             });
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Browse(string? nodeId)
-        {
-            if (!_opcUaService.IsConnected) return BadRequest("Nessuna sessione attiva.");
-            try
-            {
-                var nodes = await _opcUaService.BrowseAsync(nodeId);
-                return Json(nodes);
-            }
-            catch (Exception ex)
-            {
-                return this.StatusCode(500, new { message = $"Errore durante la navigazione: {ex.Message}" });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> ReadValues([FromBody] ReadValuesRequest request)
-        {
-            if (!_opcUaService.IsConnected || request.NodeIds == null || !request.NodeIds.Any())
-            {
-                return BadRequest("Richiesta non valida.");
-            }
-            var values = await _opcUaService.ReadValuesAsync(request.NodeIds);
-            return Json(values);
-        }
-
-        // --- AZIONI DI LOGGING AGGIUNTE ---
-        [HttpPost]
-        public async Task<IActionResult> StartLogging(string nodeId, string displayName)
-        {
-            if (string.IsNullOrEmpty(nodeId) || string.IsNullOrEmpty(displayName)) return BadRequest("NodeId e DisplayName sono obbligatori.");
-            await _opcUaService.StartLogging(nodeId, displayName);
-            return Ok();
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> StopLogging(string nodeId)
-        {
-            if (string.IsNullOrEmpty(nodeId)) return BadRequest("NodeId è obbligatorio.");
-            await _opcUaService.StopLogging(nodeId);
-            return Ok();
         }
 
         [HttpGet]
         public async Task<IActionResult> GetLoggedNodes()
         {
-            var nodeIds = await _opcUaService.GetLoggedNodeIds();
-            return Json(nodeIds);
+            var loggedNodes = await _opcUaService.GetLoggedNodeIds();
+            return Ok(loggedNodes);
         }
-        // --- FINE AZIONI DI LOGGING ---
+
+        [HttpPost]
+        public IActionResult SaveConnectionInfo([FromBody] OpcUaConnectionSettings settings)
+        {
+            if (settings == null) return BadRequest();
+
+            try
+            {
+                string appSettingsPath = Path.Combine(_env.ContentRootPath, "appsettings.json");
+                var jsonString = System.IO.File.ReadAllText(appSettingsPath);
+                var jsonObj = JsonNode.Parse(jsonString)!.AsObject();
+
+                var connectionSettingsNode = jsonObj["OpcUaConnectionSettings"]?.AsObject() ?? new JsonObject();
+                jsonObj["OpcUaConnectionSettings"] = connectionSettingsNode;
+
+                connectionSettingsNode["LastIpAddress"] = settings.LastIpAddress;
+                connectionSettingsNode["LastPort"] = settings.LastPort;
+
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                var updatedJsonString = jsonObj.ToJsonString(options);
+                System.IO.File.WriteAllText(appSettingsPath, updatedJsonString);
+
+                return Ok(new { message = "Impostazioni di connessione salvate." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Errore durante il salvataggio delle impostazioni di connessione OPC UA.");
+                return StatusCode(500, new { message = "Errore interno del server durante il salvataggio." });
+            }
+        }
+    }
+
+    public class NodeIdRequest
+    {
+        public List<string> NodeIds { get; set; } = new List<string>();
     }
 }
