@@ -1,5 +1,15 @@
-﻿@{
+﻿@using Microsoft.Extensions.Configuration
+@inject IConfiguration Configuration
+@{
     ViewData["Title"] = "OPC UA Browser";
+    var settingsModel = new Online.Models.SettingsViewModel
+    {
+        RetentionDays = Configuration.GetValue<int>("CleanupSettings:RetentionDays", 7),
+        RetentionHours = Configuration.GetValue<int>("CleanupSettings:RetentionHours", 0),
+        RetentionMinutes = Configuration.GetValue<int>("CleanupSettings:RetentionMinutes", 0),
+        CleanupIntervalHours = Configuration.GetValue<int>("CleanupSettings:CleanupIntervalHours", 1),
+        CleanupIntervalMinutes = Configuration.GetValue<int>("CleanupSettings:CleanupIntervalMinutes", 0)
+    };
 }
 <!-- Aggiunta di Font Awesome per le icone -->
 <head>
@@ -92,7 +102,6 @@
         color: #f0f0f0;
     }
 
-    /* --- NUOVI STILI PER IL RIQUADRO COLLASSABILE --- */
     .collapsible-header {
         cursor: pointer;
         display: flex;
@@ -100,14 +109,13 @@
         align-items: center;
     }
 
-    #endpoints-toggle-icon {
+    #endpoints-toggle-icon, #settings-toggle-icon {
         transition: transform 0.3s ease-in-out;
     }
 
-        #endpoints-toggle-icon.collapsed {
-            transform: rotate(180deg);
+        #endpoints-toggle-icon.collapsed, #settings-toggle-icon.collapsed {
+            transform: rotate(-180deg);
         }
-    /* --- FINE NUOVI STILI --- */
 
     /* Stili albero nodi */
     #opc-tree ul {
@@ -116,7 +124,7 @@
     }
 
     #opc-tree li {
-        padding: 4px 0;
+        padding: 2px 0;
         border: none;
     }
 
@@ -168,12 +176,12 @@
     }
 
     .node-details {
-        margin-left: auto;
-        font-size: 0.9em;
-        color: #6c757d;
+        margin-left: 10px;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.85em;
+        color: #333;
         padding-right: 10px;
         white-space: nowrap;
-        transition: all 0.2s ease;
     }
 
     .status-good {
@@ -197,13 +205,23 @@
 
         25% {
             background-color: #d4edda;
-            transform: scale(1.02);
         }
 
         100% {
             background-color: transparent;
-            transform: scale(1);
         }
+    }
+
+    .logging-checkbox {
+        margin-left: auto;
+        cursor: pointer;
+        transform: scale(1.2);
+    }
+
+    .log-indicator {
+        margin-left: 8px;
+        color: #28a745;
+        display: none;
     }
 </style>
 
@@ -237,10 +255,71 @@
     </div>
 </div>
 
-<!-- MODIFICA: Aggiunta funzionalità di collasso all'header -->
+<!-- Sezione Impostazioni Aggiornata e Collassabile -->
+<div class="card shadow-sm mt-4">
+    <div class="card-header collapsible-header" id="toggle-settings-header">
+        <span>Impostazioni di Pulizia del Database</span>
+        <i class="fas fa-chevron-up" id="settings-toggle-icon"></i>
+    </div>
+    <div class="card-body" style="display: none;">
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success">@TempData["Success"]</div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger">@TempData["Error"]</div>
+        }
+
+        <form asp-controller="Settings" asp-action="SaveSettings" method="post">
+            @Html.AntiForgeryToken()
+
+            <h5>Periodo di Conservazione Dati</h5>
+            <p class="text-muted">I log più vecchi di questo periodo verranno eliminati.</p>
+            <div class="row align-items-end">
+                <div class="col-md-4">
+                    <label for="RetentionDays" class="form-label">Giorni</label>
+                    <input id="RetentionDays" name="RetentionDays" type="number" class="form-control" value="@settingsModel.RetentionDays">
+                </div>
+                <div class="col-md-4">
+                    <label for="RetentionHours" class="form-label">Ore</label>
+                    <input id="RetentionHours" name="RetentionHours" type="number" class="form-control" value="@settingsModel.RetentionHours">
+                </div>
+                <div class="col-md-4">
+                    <label for="RetentionMinutes" class="form-label">Minuti</label>
+                    <input id="RetentionMinutes" name="RetentionMinutes" type="number" class="form-control" value="@settingsModel.RetentionMinutes">
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <h5>Intervallo di Esecuzione</h5>
+            <p class="text-muted">Ogni quanto tempo il servizio di pulizia deve essere eseguito.</p>
+            <div class="row align-items-end">
+                <div class="col-md-6">
+                    <label for="CleanupIntervalHours" class="form-label">Ore</label>
+                    <input id="CleanupIntervalHours" name="CleanupIntervalHours" type="number" class="form-control" value="@settingsModel.CleanupIntervalHours">
+                </div>
+                <div class="col-md-6">
+                    <label for="CleanupIntervalMinutes" class="form-label">Minuti</label>
+                    <input id="CleanupIntervalMinutes" name="CleanupIntervalMinutes" type="number" class="form-control" value="@settingsModel.CleanupIntervalMinutes">
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 mt-4">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i> Salva Impostazioni</button>
+            </div>
+        </form>
+    </div>
+    <div class="card-footer text-muted" style="display: none;">
+        <strong>Nota:</strong> Il riavvio dell'applicazione è necessario per applicare le nuove impostazioni.
+    </div>
+</div>
+
+
 <div id="endpoints-container" class="card shadow-sm mt-4">
     <div class="card-header collapsible-header" id="toggle-endpoints-header">
-        <span>Server Trovati</span>
+        <span>Server Trovati (Clicca per connettere)</span>
         <i class="fas fa-chevron-up" id="endpoints-toggle-icon"></i>
     </div>
     <div class="card-body">
@@ -262,10 +341,27 @@
 @section Scripts {
     <script>
         $(document).ready(function() {
-
             let valueUpdateTimer = null;
             const visibleVariableNodes = new Set();
+            let loggedNodes = new Set();
             const UPDATE_INTERVAL = 5000;
+
+            function restoreStateOnLoad() {
+                $.get('@Url.Action("GetStatus", "OpcUa")', function(status) {
+                    if (status.isConnected && status.endpointUrl) {
+                        $.get('@Url.Action("GetLoggedNodes", "OpcUa")', function(nodes) {
+                            loggedNodes = new Set(nodes);
+                            $('#endpoints-list').html(`<div class="endpoint-item active" data-endpoint-url="${status.endpointUrl}"><strong>Connesso a:</strong><div class="endpoint-url">${status.endpointUrl}</div></div>`);
+                            $('#endpoints-container').show();
+                            browseNode(null, $('#opc-tree'));
+                            startValueUpdater();
+                        });
+                    }
+                });
+            }
+
+            // Carica dati al caricamento pagina
+            restoreStateOnLoad();
 
             function startValueUpdater() {
                 stopValueUpdater();
@@ -273,39 +369,25 @@
             }
 
             function stopValueUpdater() {
-                if (valueUpdateTimer) {
-                    clearInterval(valueUpdateTimer);
-                    valueUpdateTimer = null;
-                }
+                if (valueUpdateTimer) clearInterval(valueUpdateTimer);
                 visibleVariableNodes.clear();
             }
 
             function updateVisibleNodeValues() {
-                const activeEndpoint = $('#endpoints-list .endpoint-item.active').data('endpoint-url');
-                if (!activeEndpoint || visibleVariableNodes.size === 0) {
-                    return;
-                }
-
+                if (visibleVariableNodes.size === 0) return;
                 $.ajax({
                     url: '@Url.Action("ReadValues", "OpcUa")',
                     type: 'POST',
                     contentType: 'application/json',
-                    data: JSON.stringify({
-                        endpointUrl: activeEndpoint,
-                        nodeIds: Array.from(visibleVariableNodes)
-                    }),
+                    data: JSON.stringify({ nodeIds: Array.from(visibleVariableNodes) }),
                     success: function(data) {
                         $.each(data, function(i, item) {
                             const $details = $('li[data-node-id="' + item.nodeId + '"]').find('.node-details');
                             if ($details.length > 0) {
                                 var statusClass = item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
                                 var newHtml = `Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`;
-
                                 if ($details.html() !== newHtml) {
-                                    $details.html(newHtml);
-                                    $details.addClass('value-flash').one('animationend', function() {
-                                        $(this).removeClass('value-flash');
-                                    });
+                                    $details.html(newHtml).addClass('value-flash').one('animationend', () => $details.removeClass('value-flash'));
                                 }
                             }
                         });
@@ -319,116 +401,98 @@
                 $('#error-message').hide();
                 $('#endpoints-list').empty();
                 $('#opc-tree').empty();
-                // Assicurati che il pannello sia visibile quando cerchi nuovi server
                 $('#endpoints-container .card-body').slideDown();
                 $('#endpoints-toggle-icon').removeClass('collapsed');
                 $('#endpoints-container').hide();
 
-                $.ajax({
-                    url: '@Url.Action("Discover", "OpcUa")',
-                    type: 'POST',
-                    data: { ipAddress: ip, port: port },
-                    success: function(data) {
-                        if (data.length === 0) {
-                            $('#endpoints-list').html('<div class="alert alert-warning">Nessun server trovato.</div>');
-                        } else {
-                            $.each(data, function(i, item) {
-                                var $item = $('<div class="endpoint-item" data-endpoint-url="' + item.endpointUrl + '"></div>');
-                                $item.append('<strong>' + item.applicationName + '</strong> (' + item.securityMode + ')');
-                                $item.append('<div class="endpoint-url">' + item.endpointUrl + '</div>');
-                                $('#endpoints-list').append($item);
-                            });
-                        }
-                        $('#endpoints-container').show();
-                        $('#spinner').hide();
-                    },
-                    error: function(xhr) {
-                        var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto.";
-                        $('#error-message').text(msg).show();
-                        $('#spinner').hide();
+                $.post('@Url.Action("Discover", "OpcUa")', { ipAddress: ip, port: port }, function(data) {
+                    if (data.length === 0) {
+                        $('#endpoints-list').html('<div class="alert alert-warning">Nessun server trovato.</div>');
+                    } else {
+                        $.each(data, function(i, item) {
+                            var $item = $('<div class="endpoint-item" data-endpoint-url="' + item.endpointUrl + '"></div>');
+                            $item.append(`<strong>${item.applicationName}</strong> (${item.securityMode})`).append(`<div class="endpoint-url">${item.endpointUrl}</div>`);
+                            $('#endpoints-list').append($item);
+                        });
                     }
+                    $('#endpoints-container').show();
+                }).fail(function(xhr) {
+                    var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto.";
+                    $('#error-message').text(msg).show();
+                }).always(function() {
+                    $('#spinner').hide();
                 });
             }
 
-            function browseNode(endpointUrl, nodeId, element) {
+            function browseNode(nodeId, element) {
                 $('#spinner').css('display', 'inline-block');
                 $('#error-message').hide();
                 var isExpanding = element.is('li');
 
-                $.ajax({
-                    url: '@Url.Action("Browse", "OpcUa")',
-                    type: 'POST',
-                    data: { endpointUrl: endpointUrl, nodeId: nodeId },
-                    success: function(data) {
-                        var $ul = $('<ul></ul>');
-                        if (data.length === 0) {
-                            if (isExpanding) {
-                                element.find('.node-toggle-icon').html('').removeClass('fa-solid fa-chevron-right');
-                            } else {
-                                $ul.append('<li>Nessun nodo trovato.</li>');
+                $.post('@Url.Action("Browse", "OpcUa")', { nodeId: nodeId }, function(data) {
+                    var $ul = $('<ul></ul>');
+                    if (data.length === 0) {
+                        if (isExpanding) element.find('.node-toggle-icon').html('').removeClass('fa-solid fa-chevron-right');
+                        else $ul.append('<li>Nessun nodo trovato.</li>');
+                    } else {
+                         $.each(data, function(i, item) {
+                            var $li = $('<li></li>').attr('data-node-id', item.nodeId);
+                            var $row = $('<div class="tree-item-row"></div>');
+                            if (item.hasChildren) $row.append('<i class="node-toggle-icon fa-solid fa-chevron-right"></i>');
+                            else $row.append('<span class="node-toggle-icon"></span>');
+                            var iconClass = 'fa-solid fa-question-circle';
+                            if (item.nodeClass === 'Object') iconClass = 'fa-solid fa-folder';
+                            if (item.nodeClass === 'Variable') iconClass = 'fa-solid fa-tag';
+                            if (item.nodeClass === 'Method') iconClass = 'fa-solid fa-cogs';
+                            $row.append(`<span class="node-icon"><i class="${iconClass}"></i></span>`);
+                            $row.append($('<span class="node-name"></span>').text(item.displayName));
+                            if (item.nodeClass === 'Variable') {
+                                visibleVariableNodes.add(item.nodeId);
+                                var statusClass = item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
+                                $row.append($('<span class="node-details"></span>').html(`Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`));
+
+                                const isLogging = loggedNodes.has(item.nodeId);
+                                const checkedAttr = isLogging ? 'checked' : '';
+                                $row.append(`<input type="checkbox" class="logging-checkbox" data-display-name="${item.displayName}" ${checkedAttr} title="Registra su DB" />`);
+                                $row.append(`<i class="fas fa-database log-indicator" style="display: ${isLogging ? 'inline-block' : 'none'}"></i>`);
                             }
-                        } else {
-                             $.each(data, function(i, item) {
-                                var $li = $('<li></li>').attr('data-node-id', item.nodeId);
-                                var $row = $('<div class="tree-item-row"></div>');
-
-                                if (item.hasChildren) {
-                                    $row.append('<i class="node-toggle-icon fa-solid fa-chevron-right"></i>');
-                                } else {
-                                    $row.append('<span class="node-toggle-icon"></span>');
-                                }
-
-                                var iconClass = 'fa-solid fa-question-circle';
-                                if (item.nodeClass === 'Object') iconClass = 'fa-solid fa-folder';
-                                if (item.nodeClass === 'Variable') iconClass = 'fa-solid fa-tag';
-                                if (item.nodeClass === 'Method') iconClass = 'fa-solid fa-cogs';
-                                $row.append('<span class="node-icon"><i class="' + iconClass + '"></i></span>');
-
-                                $row.append($('<span class="node-name"></span>').text(item.displayName));
-
-                                if (item.nodeClass === 'Variable') {
-                                    visibleVariableNodes.add(item.nodeId);
-                                    var statusClass = item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
-                                    $row.append($('<span class="node-details"></span>').html(`Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`));
-                                }
-                                $li.append($row);
-                                $ul.append($li);
-                            });
-                        }
-                        if(isExpanding){
-                            element.append($ul);
-                        } else {
-                            element.empty().append($ul);
-                        }
-                        $('#spinner').hide();
-                    },
-                    error: function(xhr) {
-                        var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto.";
-                         if(isExpanding){
-                            element.find('.node-toggle-icon').toggleClass('expanded', false);
-                        } else {
-                            element.empty();
-                        }
-                        $('#error-message').text(msg).show();
-                        $('#spinner').hide();
+                            $li.append($row);
+                            $ul.append($li);
+                        });
                     }
+                    if(isExpanding) element.append($ul);
+                    else element.empty().append($ul);
+                }).fail(function(xhr) {
+                    var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto.";
+                    if(isExpanding) element.find('.node-toggle-icon').toggleClass('expanded', false);
+                    else element.empty();
+                    $('#error-message').text(msg).show();
+                }).always(function() {
+                    $('#spinner').hide();
                 });
             }
 
-            // --- GESTIONE DEI CLICK ---
-            $('#discoverBtn').click(function() {
-                var ipAddress = $('#opcServerIp').val();
-                var port = $('#opcServerPort').val();
-                discoverEndpoints(ipAddress, port);
-            });
+            // --- GESTORI DI EVENTI ---
+
+            $('#discoverBtn').click(() => discoverEndpoints($('#opcServerIp').val(), $('#opcServerPort').val()));
 
             $('#endpoints-list').on('click', '.endpoint-item', function() {
                 stopValueUpdater();
                 $('.endpoint-item').removeClass('active');
                 $(this).addClass('active');
                 var endpointUrl = $(this).data('endpoint-url');
-                browseNode(endpointUrl, null, $('#opc-tree'));
-                startValueUpdater();
+                $('#spinner').css('display', 'inline-block');
+
+                $.post('@Url.Action("Connect", "OpcUa")', { endpointUrl: endpointUrl })
+                    .done(function() {
+                        browseNode(null, $('#opc-tree'));
+                        startValueUpdater();
+                    })
+                    .fail(function(xhr) {
+                         var msg = xhr.responseJSON ? xhr.responseJSON.message : "Connessione fallita.";
+                         $('#error-message').text(msg).show();
+                         $('#spinner').hide();
+                    });
             });
 
             $('#opc-tree').on('click', '.node-toggle-icon', function() {
@@ -436,30 +500,48 @@
                 var $li = $icon.closest('li');
                 var nodeId = $li.data('node-id');
                 var $childrenUl = $li.find('> ul');
-                var activeEndpoint = $('#endpoints-list .endpoint-item.active').data('endpoint-url');
-
-                if (!activeEndpoint) {
-                    alert("Seleziona prima un server dalla lista.");
-                    return;
-                }
 
                 $icon.toggleClass('expanded');
-
                 if ($childrenUl.length > 0) {
-                    $childrenUl.find('li').each(function() {
-                        visibleVariableNodes.delete($(this).data('node-id'));
-                    });
+                    $childrenUl.find('li').each(function() { visibleVariableNodes.delete($(this).data('node-id')); });
                     $childrenUl.remove();
                 } else {
-                    browseNode(activeEndpoint, nodeId, $li);
+                    browseNode(nodeId, $li);
                 }
             });
 
-            // NUOVO: Click sull'header per nascondere/mostrare il pannello
             $('#toggle-endpoints-header').on('click', function() {
                 $(this).next('.card-body').slideToggle();
                 $('#endpoints-toggle-icon').toggleClass('collapsed');
             });
+
+            // --- NUOVO GESTORE PER IL PANNELLO IMPOSTAZIONI ---
+            $('#toggle-settings-header').on('click', function() {
+                $(this).nextAll('.card-body, .card-footer').slideToggle();
+                $('#settings-toggle-icon').toggleClass('collapsed');
+            });
+
+            $('#opc-tree').on('change', '.logging-checkbox', function() {
+                const $checkbox = $(this);
+                const nodeId = $checkbox.closest('li').data('node-id');
+                const displayName = $checkbox.data('display-name');
+                const isChecked = $checkbox.is(':checked');
+                const url = isChecked ? '@Url.Action("StartLogging", "OpcUa")' : '@Url.Action("StopLogging", "OpcUa")';
+
+                $.post(url, { nodeId: nodeId, displayName: displayName })
+                    .done(function() {
+                        $checkbox.next('.log-indicator').toggle(isChecked);
+                        if (isChecked) loggedNodes.add(nodeId);
+                        else loggedNodes.delete(nodeId);
+                    })
+                    .fail(function() {
+                        alert("Errore durante l'aggiornamento della registrazione.");
+                        $checkbox.prop('checked', !isChecked);
+                    });
+            });
         });
     </script>
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
 }
