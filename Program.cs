@@ -10,9 +10,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
 
-// Registra le impostazioni per renderle disponibili nell'applicazione
+// Registra le sezioni di configurazione come classi di opzioni, rendendole disponibili
+// tramite dependency injection e aggiornabili in tempo reale.
 builder.Services.Configure<CleanupSettings>(
     builder.Configuration.GetSection("CleanupSettings"));
+
+builder.Services.Configure<OpcUaConnectionSettings>(
+    builder.Configuration.GetSection("OpcUaConnectionSettings"));
 
 // Aggiunge i servizi al container.
 builder.Services.AddControllersWithViews();
@@ -21,13 +25,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySQL(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
-// --- CORREZIONE ---
 // Registra OpcUaService come Singleton. Viene creato una sola volta e condiviso.
 builder.Services.AddSingleton<OpcUaService>();
-
-// La riga che causava l'errore è stata rimossa, perché OpcUaService non è un IHostedService.
-// Il DataCleanUpService, invece, lo è e viene registrato correttamente qui sotto.
 
 // Registra il servizio di pulizia dati in background.
 builder.Services.AddHostedService<DataCleanUpService>();
@@ -39,6 +38,7 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 

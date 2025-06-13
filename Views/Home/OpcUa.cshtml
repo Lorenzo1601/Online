@@ -1,5 +1,8 @@
 ﻿@using Microsoft.Extensions.Configuration
+@using Microsoft.Extensions.Options
 @inject IConfiguration Configuration
+@* La riga seguente non è più necessaria per questa logica e può essere rimossa per semplificare *@
+@* @inject IOptions<Online.Models.OpcUaConnectionSettings> OpcUaSettings *@
 @{
     ViewData["Title"] = "OPC UA Browser";
     var settingsModel = new Online.Models.SettingsViewModel
@@ -11,7 +14,6 @@
         CleanupIntervalMinutes = Configuration.GetValue<int>("CleanupSettings:CleanupIntervalMinutes", 0)
     };
 }
-<!-- Aggiunta di Font Awesome per le icone -->
 <head>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
@@ -237,11 +239,11 @@
         <div class="d-flex align-items-end opc-connection-form">
             <div class="form-group flex-grow-1">
                 <label for="opcServerIp" class="mb-1"><strong>Indirizzo IP Server</strong></label>
-                <input type="text" id="opcServerIp" class="form-control" placeholder="es. 172.20.32.10" value="172.20.32.10">
+                <input type="text" id="opcServerIp" class="form-control" placeholder="es. 172.20.32.10">
             </div>
             <div class="form-group">
                 <label for="opcServerPort" class="mb-1"><strong>Porta</strong></label>
-                <input type="text" id="opcServerPort" class="form-control" placeholder="es. 62841" value="62841" style="max-width: 120px;">
+                <input type="text" id="opcServerPort" class="form-control" placeholder="es. 62841" style="max-width: 120px;">
             </div>
             <div class="form-group">
                 <button id="discoverBtn" class="btn btn-discover-custom">Trova Server</button>
@@ -255,7 +257,7 @@
     </div>
 </div>
 
-<!-- Sezione Impostazioni Aggiornata e Collassabile -->
+<!-- Sezione Impostazioni -->
 <div class="card shadow-sm mt-4">
     <div class="card-header collapsible-header" id="toggle-settings-header">
         <span>Impostazioni di Pulizia del Database</span>
@@ -273,69 +275,35 @@
 
         <form asp-controller="Settings" asp-action="SaveSettings" method="post">
             @Html.AntiForgeryToken()
-
             <h5>Periodo di Conservazione Dati</h5>
             <p class="text-muted">I log più vecchi di questo periodo verranno eliminati.</p>
             <div class="row align-items-end">
-                <div class="col-md-4">
-                    <label for="RetentionDays" class="form-label">Giorni</label>
-                    <input id="RetentionDays" name="RetentionDays" type="number" class="form-control" value="@settingsModel.RetentionDays">
-                </div>
-                <div class="col-md-4">
-                    <label for="RetentionHours" class="form-label">Ore</label>
-                    <input id="RetentionHours" name="RetentionHours" type="number" class="form-control" value="@settingsModel.RetentionHours">
-                </div>
-                <div class="col-md-4">
-                    <label for="RetentionMinutes" class="form-label">Minuti</label>
-                    <input id="RetentionMinutes" name="RetentionMinutes" type="number" class="form-control" value="@settingsModel.RetentionMinutes">
-                </div>
+                <div class="col-md-4"><label for="RetentionDays" class="form-label">Giorni</label><input id="RetentionDays" name="RetentionDays" type="number" class="form-control" value="@settingsModel.RetentionDays"></div>
+                <div class="col-md-4"><label for="RetentionHours" class="form-label">Ore</label><input id="RetentionHours" name="RetentionHours" type="number" class="form-control" value="@settingsModel.RetentionHours"></div>
+                <div class="col-md-4"><label for="RetentionMinutes" class="form-label">Minuti</label><input id="RetentionMinutes" name="RetentionMinutes" type="number" class="form-control" value="@settingsModel.RetentionMinutes"></div>
             </div>
-
             <hr class="my-4">
-
             <h5>Intervallo di Esecuzione</h5>
             <p class="text-muted">Ogni quanto tempo il servizio di pulizia deve essere eseguito.</p>
             <div class="row align-items-end">
-                <div class="col-md-6">
-                    <label for="CleanupIntervalHours" class="form-label">Ore</label>
-                    <input id="CleanupIntervalHours" name="CleanupIntervalHours" type="number" class="form-control" value="@settingsModel.CleanupIntervalHours">
-                </div>
-                <div class="col-md-6">
-                    <label for="CleanupIntervalMinutes" class="form-label">Minuti</label>
-                    <input id="CleanupIntervalMinutes" name="CleanupIntervalMinutes" type="number" class="form-control" value="@settingsModel.CleanupIntervalMinutes">
-                </div>
+                <div class="col-md-6"><label for="CleanupIntervalHours" class="form-label">Ore</label><input id="CleanupIntervalHours" name="CleanupIntervalHours" type="number" class="form-control" value="@settingsModel.CleanupIntervalHours"></div>
+                <div class="col-md-6"><label for="CleanupIntervalMinutes" class="form-label">Minuti</label><input id="CleanupIntervalMinutes" name="CleanupIntervalMinutes" type="number" class="form-control" value="@settingsModel.CleanupIntervalMinutes"></div>
             </div>
-
-            <div class="d-grid gap-2 mt-4">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i> Salva Impostazioni</button>
-            </div>
+            <div class="d-grid gap-2 mt-4"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i> Salva Impostazioni</button></div>
         </form>
     </div>
-    <div class="card-footer text-muted" style="display: none;">
-        <strong>Nota:</strong> Il riavvio dell'applicazione è necessario per applicare le nuove impostazioni.
-    </div>
+    <div class="card-footer text-muted" style="display: none;"><strong>Nota:</strong> Il riavvio dell'applicazione è necessario per applicare le nuove impostazioni.</div>
 </div>
 
-
+<!-- Resto della pagina -->
 <div id="endpoints-container" class="card shadow-sm mt-4">
-    <div class="card-header collapsible-header" id="toggle-endpoints-header">
-        <span>Server Trovati (Clicca per connettere)</span>
-        <i class="fas fa-chevron-up" id="endpoints-toggle-icon"></i>
-    </div>
-    <div class="card-body">
-        <div id="endpoints-list"></div>
-    </div>
+    <div class="card-header collapsible-header" id="toggle-endpoints-header"><span>Server Trovati (Clicca per connettere)</span><i class="fas fa-chevron-up" id="endpoints-toggle-icon"></i></div>
+    <div class="card-body"><div id="endpoints-list"></div></div>
 </div>
-
 <div class="card shadow-sm mt-4">
-    <div class="card-header">
-        Struttura del Server
-    </div>
-    <div class="card-body">
-        <div id="opc-tree"></div>
-    </div>
+    <div class="card-header">Struttura del Server</div>
+    <div class="card-body"><div id="opc-tree"></div></div>
 </div>
-
 <div id="error-message" class="alert alert-danger mt-3" style="display: none;"></div>
 
 @section Scripts {
@@ -345,6 +313,31 @@
             const visibleVariableNodes = new Set();
             let loggedNodes = new Set();
             const UPDATE_INTERVAL = 5000;
+
+            // --- NUOVA LOGICA PER SALVARE E CARICARE IP E PORTA ---
+            function loadConnectionInfo() {
+                const lastIp = localStorage.getItem('opcLastIp');
+                const lastPort = localStorage.getItem('opcLastPort');
+                if (lastIp) {
+                    $('#opcServerIp').val(lastIp);
+                }
+                if (lastPort) {
+                    $('#opcServerPort').val(lastPort);
+                }
+            }
+
+            function saveConnectionInfo() {
+                localStorage.setItem('opcLastIp', $('#opcServerIp').val());
+                localStorage.setItem('opcLastPort', $('#opcServerPort').val());
+            }
+
+            // Carica i valori all'avvio della pagina
+            loadConnectionInfo();
+
+            // Salva i valori ogni volta che vengono modificati
+            $('#opcServerIp').on('input', saveConnectionInfo);
+            $('#opcServerPort').on('input', saveConnectionInfo);
+
 
             function restoreStateOnLoad() {
                 $.get('@Url.Action("GetStatus", "OpcUa")', function(status) {
@@ -474,7 +467,12 @@
 
             // --- GESTORI DI EVENTI ---
 
-            $('#discoverBtn').click(() => discoverEndpoints($('#opcServerIp').val(), $('#opcServerPort').val()));
+            $('#discoverBtn').click(function() {
+                const ip = $('#opcServerIp').val();
+                const port = $('#opcServerPort').val();
+                // La chiamata AJAX per salvare non è più necessaria, la logica è gestita da 'oninput'.
+                discoverEndpoints(ip, port);
+            });
 
             $('#endpoints-list').on('click', '.endpoint-item', function() {
                 stopValueUpdater();
@@ -515,7 +513,6 @@
                 $('#endpoints-toggle-icon').toggleClass('collapsed');
             });
 
-            // --- NUOVO GESTORE PER IL PANNELLO IMPOSTAZIONI ---
             $('#toggle-settings-header').on('click', function() {
                 $(this).nextAll('.card-body, .card-footer').slideToggle();
                 $('#settings-toggle-icon').toggleClass('collapsed');
