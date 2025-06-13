@@ -1,8 +1,6 @@
 ﻿@using Microsoft.Extensions.Configuration
 @using Microsoft.Extensions.Options
 @inject IConfiguration Configuration
-@* La riga seguente non è più necessaria per questa logica e può essere rimossa per semplificare *@
-@* @inject IOptions<Online.Models.OpcUaConnectionSettings> OpcUaSettings *@
 @{
     ViewData["Title"] = "OPC UA Browser";
     var settingsModel = new Online.Models.SettingsViewModel
@@ -19,35 +17,108 @@
 </head>
 
 <style>
-    /* Stili generali */
+    /* Dark Theme General Styles */
+    body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+
+    .display-4 {
+        color: #ffffff;
+    }
+
+    /* Dark Card Styles */
+    .card {
+        background-color: #2d2d2d;
+        border: 1px solid #404040;
+        border-radius: 8px;
+        color: #e0e0e0;
+    }
+
+    .card-header {
+        background-color: #333333 !important;
+        color: #ffffff !important;
+        border-bottom: 1px solid #404040;
+    }
+
+    .card-body {
+        background-color: #2d2d2d;
+    }
+
+    .card-footer {
+        background-color: #2d2d2d;
+        border-top: 1px solid #404040;
+        color: #b0b0b0;
+    }
+
+    /* Dark Form Controls */
+    .form-control {
+        background-color: #333333;
+        color: #e0e0e0;
+        border: 1px solid #555;
+    }
+
+        .form-control::placeholder {
+            color: #888;
+        }
+
+        .form-control:focus {
+            background-color: #333333;
+            color: #e0e0e0;
+            border-color: #64b5f6;
+            box-shadow: 0 0 0 0.25rem rgba(100, 181, 246, 0.25);
+        }
+
+    .form-label, label {
+        color: #b0b0b0;
+    }
+
+    .text-muted {
+        color: #a0a0a0 !important;
+    }
+
+    /* Connection Form & Spinner */
     .opc-connection-form .form-group {
         margin-right: 15px;
     }
 
     .btn-discover-custom {
         background-color: transparent;
-        border: 2px solid #28a745;
-        color: #28a745;
+        border: 2px solid #81c784;
+        color: #81c784;
         font-weight: bold;
         transition: all 0.3s ease-in-out;
         padding: 0.375rem 1.5rem;
     }
 
         .btn-discover-custom:hover {
-            background-color: #28a745;
-            color: white;
+            background-color: #81c784;
+            color: #1a1a1a;
+        }
+
+    /* --- NEW CUSTOM SAVE BUTTON STYLE --- */
+    .btn-save-custom {
+        background-color: transparent;
+        border: 2px solid #64b5f6; /* Blue outline */
+        color: #64b5f6; /* Blue text */
+        font-weight: bold;
+        transition: all 0.3s ease-in-out;
+    }
+
+        .btn-save-custom:hover {
+            background-color: #64b5f6; /* Blue background on hover */
+            color: #1a1a1a; /* Dark text on hover */
         }
 
     .spinner-dots {
         display: none;
         margin-left: 20px;
-        text-align: center;
     }
 
         .spinner-dots > div {
             width: 14px;
             height: 14px;
-            background-color: #28a745;
+            background-color: #81c784; /* Green spinner */
             border-radius: 100%;
             display: inline-block;
             animation: sk-bouncedelay 1.4s infinite ease-in-out both;
@@ -71,39 +142,55 @@
         }
     }
 
-    /* Stili lista endpoint */
+    /* Dark Alerts */
+    .alert-success {
+        background-color: #2e7d32;
+        color: #e8f5e9;
+        border-color: #388e3c;
+    }
+
+    .alert-danger {
+        background-color: #c62828;
+        color: #ffebee;
+        border-color: #d32f2f;
+    }
+
+    /* Endpoint List Styles */
     #endpoints-container {
         display: none;
     }
 
     .endpoint-item {
         padding: 10px;
-        border: 1px solid #ddd;
+        border: 1px solid #404040;
         border-radius: 5px;
         margin-bottom: 5px;
         cursor: pointer;
-        background-color: #f8f9fa;
+        background-color: #333;
+        transition: background-color 0.2s ease-in-out;
     }
 
         .endpoint-item:hover {
-            background-color: #e9ecef;
+            background-color: #3c3c3c;
         }
 
         .endpoint-item.active {
-            background-color: #007bff;
-            color: white;
-            border-color: #007bff;
+            background-color: #64b5f6;
+            color: #1a1a1a;
+            border-color: #64b5f6;
+            font-weight: bold;
         }
 
     .endpoint-url {
         font-size: 0.8em;
-        color: #6c757d;
+        color: #b0b0b0;
     }
 
     .endpoint-item.active .endpoint-url {
-        color: #f0f0f0;
+        color: #2d2d2d;
     }
 
+    /* Collapsible Headers */
     .collapsible-header {
         cursor: pointer;
         display: flex;
@@ -119,7 +206,7 @@
             transform: rotate(-180deg);
         }
 
-    /* Stili albero nodi */
+    /* Tree View Styles */
     #opc-tree ul {
         list-style-type: none;
         padding-left: 25px;
@@ -139,13 +226,13 @@
     }
 
         .tree-item-row:hover {
-            background-color: #f1f1f1;
+            background-color: #3c3c3c;
         }
 
     .node-toggle-icon {
         width: 20px;
         text-align: center;
-        color: #6c757d;
+        color: #b0b0b0;
         cursor: pointer;
         transition: transform 0.2s ease-in-out;
     }
@@ -163,14 +250,15 @@
         .node-icon .fa-folder {
             color: #f0ad4e;
         }
-
+        /* Orange */
         .node-icon .fa-tag {
             color: #5bc0de;
         }
-
+        /* Info Blue */
         .node-icon .fa-cogs {
-            color: #6c757d;
+            color: #b0b0b0;
         }
+    /* Grey */
 
     .node-name {
         font-weight: 500;
@@ -181,18 +269,18 @@
         margin-left: 10px;
         font-family: 'Courier New', Courier, monospace;
         font-size: 0.85em;
-        color: #333;
+        color: #c0c0c0;
         padding-right: 10px;
         white-space: nowrap;
     }
 
     .status-good {
-        color: #28a745;
+        color: #81c784; /* Light Green */
         font-weight: bold;
     }
 
     .status-bad {
-        color: #dc3545;
+        color: #e57373; /* Light Red */
         font-weight: bold;
     }
 
@@ -206,9 +294,9 @@
         }
 
         25% {
-            background-color: #d4edda;
+            background-color: rgba(129, 199, 132, 0.2);
         }
-
+        /* Faded green flash */
         100% {
             background-color: transparent;
         }
@@ -222,8 +310,20 @@
 
     .log-indicator {
         margin-left: 8px;
-        color: #28a745;
+        color: #81c784;
         display: none;
+    }
+
+    @@media (max-width: 768px) {
+        .opc-connection-form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+            .opc-connection-form .form-group {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
     }
 </style>
 
@@ -282,17 +382,17 @@
                 <div class="col-md-4"><label for="RetentionHours" class="form-label">Ore</label><input id="RetentionHours" name="RetentionHours" type="number" class="form-control" value="@settingsModel.RetentionHours"></div>
                 <div class="col-md-4"><label for="RetentionMinutes" class="form-label">Minuti</label><input id="RetentionMinutes" name="RetentionMinutes" type="number" class="form-control" value="@settingsModel.RetentionMinutes"></div>
             </div>
-            <hr class="my-4">
+            <hr class="my-4" style="border-top: 1px solid #404040;">
             <h5>Intervallo di Esecuzione</h5>
             <p class="text-muted">Ogni quanto tempo il servizio di pulizia deve essere eseguito.</p>
             <div class="row align-items-end">
                 <div class="col-md-6"><label for="CleanupIntervalHours" class="form-label">Ore</label><input id="CleanupIntervalHours" name="CleanupIntervalHours" type="number" class="form-control" value="@settingsModel.CleanupIntervalHours"></div>
                 <div class="col-md-6"><label for="CleanupIntervalMinutes" class="form-label">Minuti</label><input id="CleanupIntervalMinutes" name="CleanupIntervalMinutes" type="number" class="form-control" value="@settingsModel.CleanupIntervalMinutes"></div>
             </div>
-            <div class="d-grid gap-2 mt-4"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i> Salva Impostazioni</button></div>
+            <div class="d-grid gap-2 mt-4"><button type="submit" class="btn btn-save-custom"><i class="fas fa-save me-2"></i> Salva Impostazioni</button></div>
         </form>
     </div>
-    <div class="card-footer text-muted" style="display: none;"><strong>Nota:</strong> Il riavvio dell'applicazione è necessario per applicare le nuove impostazioni.</div>
+    <div class="card-footer" style="display: none;"><strong>Nota:</strong> Il riavvio dell'applicazione è necessario per applicare le nuove impostazioni.</div>
 </div>
 
 <!-- Resto della pagina -->
@@ -314,7 +414,7 @@
             let loggedNodes = new Set();
             const UPDATE_INTERVAL = 5000;
 
-            // --- NUOVA LOGICA PER SALVARE E CARICARE IP E PORTA ---
+            // --- Logica per salvare e caricare IP e PORTA ---
             function loadConnectionInfo() {
                 const lastIp = localStorage.getItem('opcLastIp');
                 const lastPort = localStorage.getItem('opcLastPort');
@@ -331,13 +431,10 @@
                 localStorage.setItem('opcLastPort', $('#opcServerPort').val());
             }
 
-            // Carica i valori all'avvio della pagina
             loadConnectionInfo();
 
-            // Salva i valori ogni volta che vengono modificati
             $('#opcServerIp').on('input', saveConnectionInfo);
             $('#opcServerPort').on('input', saveConnectionInfo);
-
 
             function restoreStateOnLoad() {
                 $.get('@Url.Action("GetStatus", "OpcUa")', function(status) {
@@ -353,7 +450,6 @@
                 });
             }
 
-            // Carica dati al caricamento pagina
             restoreStateOnLoad();
 
             function startValueUpdater() {
@@ -375,7 +471,8 @@
                     data: JSON.stringify({ nodeIds: Array.from(visibleVariableNodes) }),
                     success: function(data) {
                         $.each(data, function(i, item) {
-                            const $details = $('li[data-node-id="' + item.nodeId + '"]').find('.node-details');
+                            const $li = $(`li[data-node-id="${item.nodeId.replace(/"/g, '\\"')}"]`);
+                            const $details = $li.find('.node-details');
                             if ($details.length > 0) {
                                 var statusClass = item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
                                 var newHtml = `Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`;
@@ -410,7 +507,7 @@
                     }
                     $('#endpoints-container').show();
                 }).fail(function(xhr) {
-                    var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto.";
+                    var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto durante la ricerca.";
                     $('#error-message').text(msg).show();
                 }).always(function() {
                     $('#spinner').hide();
@@ -456,7 +553,7 @@
                     if(isExpanding) element.append($ul);
                     else element.empty().append($ul);
                 }).fail(function(xhr) {
-                    var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto.";
+                    var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore durante il browsing.";
                     if(isExpanding) element.find('.node-toggle-icon').toggleClass('expanded', false);
                     else element.empty();
                     $('#error-message').text(msg).show();
@@ -465,12 +562,9 @@
                 });
             }
 
-            // --- GESTORI DI EVENTI ---
-
             $('#discoverBtn').click(function() {
                 const ip = $('#opcServerIp').val();
                 const port = $('#opcServerPort').val();
-                // La chiamata AJAX per salvare non è più necessaria, la logica è gestita da 'oninput'.
                 discoverEndpoints(ip, port);
             });
 
