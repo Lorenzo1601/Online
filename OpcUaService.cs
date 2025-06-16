@@ -120,6 +120,7 @@ namespace Online
             await AddAndConnectServerAsync(model.NomeMacchina, model.IP_Address, model.Porta, false);
         }
 
+        // --- METODO CORRETTO ---
         public async Task DeleteServerAsync(string nomeMacchina)
         {
             if (_serverInstances.TryRemove(nomeMacchina, out var instance))
@@ -128,21 +129,23 @@ namespace Online
                 instance.Dispose();
             }
 
+            // Rimuove la configurazione persistente per il server eliminato.
             await _monitoringConfigService.RemoveServerConfigAsync(nomeMacchina);
 
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var logsToDelete = dbContext.MacchineOpcUaLog.Where(l => l.NomeMacchina == nomeMacchina);
-            if (await logsToDelete.AnyAsync())
-            {
-                dbContext.MacchineOpcUaLog.RemoveRange(logsToDelete);
-            }
+
+            // Trova la connessione principale da eliminare.
             var connessioneDb = await dbContext.Connessioni.FindAsync(nomeMacchina);
             if (connessioneDb != null)
             {
+                // Rimuove solo il record "padre".
+                // Si presuppone che il database abbia una FOREIGN KEY con ON DELETE CASCADE
+                // per eliminare automaticamente i record "figli" (i log) associati.
+                // Questo è l'approccio standard e previene errori di concorrenza.
                 dbContext.Connessioni.Remove(connessioneDb);
+                await dbContext.SaveChangesAsync();
             }
-            await dbContext.SaveChangesAsync();
         }
 
         private ApplicationConfiguration BuildClientConfiguration() { var config = new ApplicationConfiguration() { ApplicationName = "OpcUaWebAppClient", ApplicationType = ApplicationType.Client, ClientConfiguration = new ClientConfiguration { DefaultSessionTimeout = 60000 }, SecurityConfiguration = new SecurityConfiguration { ApplicationCertificate = new CertificateIdentifier { StoreType = @"Directory", StorePath = @"%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault", SubjectName = "OpcUaWebAppClient" }, TrustedIssuerCertificates = new CertificateTrustList { StoreType = @"Directory", StorePath = @"%CommonApplicationData%\OPC Foundation\CertificateStores\UA Certificate Authorities" }, TrustedPeerCertificates = new CertificateTrustList { StoreType = @"Directory", StorePath = @"%CommonApplicationData%\OPC Foundation\CertificateStores\UA Applications" }, RejectedCertificateStore = new CertificateStoreIdentifier { StoreType = @"Directory", StorePath = @"%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates" }, AutoAcceptUntrustedCertificates = true }, CertificateValidator = new CertificateValidator() }; config.CertificateValidator.CertificateValidation += (validator, eventArgs) => { if (ServiceResult.IsBad(eventArgs.Error)) eventArgs.Accept = true; }; config.Validate(ApplicationType.Client).Wait(); var application = new ApplicationInstance(config); application.CheckApplicationInstanceCertificate(false, 2048).Wait(); return config; }
@@ -179,7 +182,6 @@ namespace Online
         {
             NomeMacchina = nomeMacchina; IpAddress = ipAddress; Port = port; _clientConfig = clientConfig;
             _scopeFactory = scopeFactory; _logger = logger; _configuration = configuration; _httpClientFactory = httpClientFactory;
-            // --- CORREZIONE REFUso ---
             _monitoringConfigService = monitoringConfigService;
             _serverConfig = serverConfig;
         }
@@ -264,7 +266,6 @@ namespace Online
             {
                 using var scope = _scopeFactory.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                // --- CORREZIONE AMBIGUITÀ ---
                 var logEntry = new MacchinaOpcUaLog { NomeMacchina = serverInstance.NomeMacchina, Nome = monitoredItem.DisplayName, Nodo = nodeId, Valore = value.Value?.ToString(), Qualita = Opc.Ua.StatusCodes.GetBrowseName(value.StatusCode.Code), Timestamp = value.SourceTimestamp.ToLocalTime() };
                 dbContext.MacchineOpcUaLog.Add(logEntry);
                 dbContext.SaveChanges();
@@ -272,7 +273,6 @@ namespace Online
 
             if (serverInstance._serverConfig.TelegramAlarmingNodes.ContainsKey(nodeId))
             {
-                // --- CORREZIONE AMBIGUITÀ ---
                 if (value.StatusCode.Code != Opc.Ua.StatusCodes.Good)
                 {
                     var message = $"⚠️ *Allarme Qualità OPC UA*\n\n" + $"*Macchina*: `{serverInstance.NomeMacchina}`\n" + $"*Tag*: `{monitoredItem.DisplayName}`\n" + $"*Qualità*: `{Opc.Ua.StatusCodes.GetBrowseName(value.StatusCode.Code)}`";
@@ -359,7 +359,6 @@ namespace Online
                 {
                     DataValue dataValue = session.ReadValue(currentNodeId);
                     nodeModel.Value = dataValue.Value?.ToString() ?? "null";
-                    // --- CORREZIONE AMBIGUITÀ ---
                     nodeModel.Status = Opc.Ua.StatusCode.LookupSymbolicId(dataValue.StatusCode.Code);
                 }
                 catch { nodeModel.Value = "N/D"; nodeModel.Status = "ErroreLettura"; }
