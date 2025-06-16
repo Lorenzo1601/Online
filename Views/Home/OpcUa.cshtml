@@ -302,17 +302,33 @@
         }
     }
 
-    .logging-checkbox {
+    /* --- MODIFIED: Styles for the two checkboxes --- */
+    .node-actions {
         margin-left: auto;
-        cursor: pointer;
-        transform: scale(1.2);
+        display: flex;
+        align-items: center;
     }
 
-    .log-indicator {
-        margin-left: 8px;
-        color: #81c784;
-        display: none;
+    .action-checkbox {
+        cursor: pointer;
+        transform: scale(1.2);
+        margin-left: 15px; /* Space between checkboxes */
     }
+
+    .action-icon {
+        margin-left: 5px;
+        font-size: 0.9em;
+    }
+
+    .db-log-icon {
+        color: #64b5f6; /* Blue for DB */
+    }
+
+    .telegram-alarm-icon {
+        color: #ffca28; /* Yellow for alarm */
+    }
+    /* --- END MODIFICATION --- */
+
 
     @@media (max-width: 768px) {
         .opc-connection-form {
@@ -411,10 +427,11 @@
         $(document).ready(function() {
             let valueUpdateTimer = null;
             const visibleVariableNodes = new Set();
-            let loggedNodes = new Set();
+            // --- MODIFIED: Separate sets for logging and alarming states ---
+            let dbLoggingNodes = new Set();
+            let telegramAlarmingNodes = new Set();
             const UPDATE_INTERVAL = 5000;
 
-            // --- Logica per salvare e caricare IP e PORTA ---
             function loadConnectionInfo() {
                 const lastIp = localStorage.getItem('opcLastIp');
                 const lastPort = localStorage.getItem('opcLastPort');
@@ -436,11 +453,15 @@
             $('#opcServerIp').on('input', saveConnectionInfo);
             $('#opcServerPort').on('input', saveConnectionInfo);
 
+            // --- MODIFIED: Restore state for both logging and alarming ---
             function restoreStateOnLoad() {
                 $.get('@Url.Action("GetStatus", "OpcUa")', function(status) {
                     if (status.isConnected && status.endpointUrl) {
-                        $.get('@Url.Action("GetLoggedNodes", "OpcUa")', function(nodes) {
-                            loggedNodes = new Set(nodes);
+                        // Get the monitoring status for both functions
+                        $.get('@Url.Action("GetMonitoringStatus", "OpcUa")', function(monitoringStatus) {
+                            dbLoggingNodes = new Set(monitoringStatus.dbLoggingNodes || []);
+                            telegramAlarmingNodes = new Set(monitoringStatus.telegramAlarmingNodes || []);
+
                             $('#endpoints-list').html(`<div class="endpoint-item active" data-endpoint-url="${status.endpointUrl}"><strong>Connesso a:</strong><div class="endpoint-url">${status.endpointUrl}</div></div>`);
                             $('#endpoints-container').show();
                             browseNode(null, $('#opc-tree'));
@@ -541,10 +562,26 @@
                                 var statusClass = item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
                                 $row.append($('<span class="node-details"></span>').html(`Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`));
 
-                                const isLogging = loggedNodes.has(item.nodeId);
-                                const checkedAttr = isLogging ? 'checked' : '';
-                                $row.append(`<input type="checkbox" class="logging-checkbox" data-display-name="${item.displayName}" ${checkedAttr} title="Registra su DB" />`);
-                                $row.append(`<i class="fas fa-database log-indicator" style="display: ${isLogging ? 'inline-block' : 'none'}"></i>`);
+                                // --- MODIFIED: Add two separate checkboxes ---
+                                const isDbLogging = dbLoggingNodes.has(item.nodeId);
+                                const isTelegramAlarming = telegramAlarmingNodes.has(item.nodeId);
+
+                                const $actionsDiv = $('<div class="node-actions"></div>');
+
+                                // DB Logging Checkbox
+                                $actionsDiv.append(`
+                                    <input type="checkbox" class="action-checkbox db-logging-checkbox" data-display-name="${item.displayName}" ${isDbLogging ? 'checked' : ''} title="Registra su Database" />
+                                    <i class="fas fa-database action-icon db-log-icon" title="Registrazione su DB"></i>
+                                `);
+
+                                // Telegram Alarming Checkbox
+                                $actionsDiv.append(`
+                                    <input type="checkbox" class="action-checkbox telegram-alarming-checkbox" data-display-name="${item.displayName}" ${isTelegramAlarming ? 'checked' : ''} title="Invia allarme Telegram" />
+                                    <i class="fas fa-bell action-icon telegram-alarm-icon" title="Allarme qualità Telegram"></i>
+                                `);
+
+                                $row.append($actionsDiv);
+                                // --- END MODIFICATION ---
                             }
                             $li.append($row);
                             $ul.append($li);
@@ -612,24 +649,47 @@
                 $('#settings-toggle-icon').toggleClass('collapsed');
             });
 
-            $('#opc-tree').on('change', '.logging-checkbox', function() {
-                const $checkbox = $(this);
+            // --- ADDED: Generic function to handle checkbox changes ---
+            function handleMonitoringChange(checkbox) {
+                const $checkbox = $(checkbox);
                 const nodeId = $checkbox.closest('li').data('node-id');
                 const displayName = $checkbox.data('display-name');
                 const isChecked = $checkbox.is(':checked');
-                const url = isChecked ? '@Url.Action("StartLogging", "OpcUa")' : '@Url.Action("StopLogging", "OpcUa")';
+                let actionType = '';
+
+                if ($checkbox.hasClass('db-logging-checkbox')) {
+                    actionType = 'DbLogging';
+                } else if ($checkbox.hasClass('telegram-alarming-checkbox')) {
+                    actionType = 'TelegramAlarming';
+                }
+
+                if (!actionType) return;
+
+                const url = isChecked ? `@Url.Action("Start", "OpcUa")/${actionType}` : `@Url.Action("Stop", "OpcUa")/${actionType}`;
 
                 $.post(url, { nodeId: nodeId, displayName: displayName })
                     .done(function() {
-                        $checkbox.next('.log-indicator').toggle(isChecked);
-                        if (isChecked) loggedNodes.add(nodeId);
-                        else loggedNodes.delete(nodeId);
+                        if (actionType === 'DbLogging') {
+                            isChecked ? dbLoggingNodes.add(nodeId) : dbLoggingNodes.delete(nodeId);
+                        } else if (actionType === 'TelegramAlarming') {
+                            isChecked ? telegramAlarmingNodes.add(nodeId) : telegramAlarmingNodes.delete(nodeId);
+                        }
                     })
                     .fail(function() {
-                        alert("Errore durante l'aggiornamento della registrazione.");
+                        alert(`Errore durante l'aggiornamento del monitoraggio ${actionType}.`);
                         $checkbox.prop('checked', !isChecked);
                     });
+            }
+
+            $('#opc-tree').on('change', '.db-logging-checkbox', function() {
+                handleMonitoringChange(this);
             });
+
+            $('#opc-tree').on('change', '.telegram-alarming-checkbox', function() {
+                handleMonitoringChange(this);
+            });
+            // --- END MODIFICATION ---
+
         });
     </script>
     @{
