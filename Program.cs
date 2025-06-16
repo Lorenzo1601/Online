@@ -25,6 +25,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseMySQL(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddHttpClient();
+
 // Registra OpcUaService come Singleton. Viene creato una sola volta e condiviso.
 builder.Services.AddSingleton<OpcUaService>();
 

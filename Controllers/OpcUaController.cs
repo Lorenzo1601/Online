@@ -1,165 +1,129 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Online.Models;
-using System.Text.Json;
-using System.Text.Json.Nodes;
+using Online;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
-namespace Online.Controllers
+public class OpcUaController : Controller
 {
-    public class OpcUaController : Controller
+    private readonly OpcUaService _opcUaService;
+
+    public OpcUaController(OpcUaService opcUaService)
     {
-        private readonly OpcUaService _opcUaService;
-        private readonly ILogger<OpcUaController> _logger;
-        private readonly IWebHostEnvironment _env;
+        _opcUaService = opcUaService;
+    }
 
-        public OpcUaController(OpcUaService opcUaService, ILogger<OpcUaController> logger, IWebHostEnvironment env)
+    [HttpPost]
+    public async Task<IActionResult> Discover(string ipAddress, string port)
+    {
+        try
         {
-            _opcUaService = opcUaService;
-            _logger = logger;
-            _env = env;
+            string discoveryUrl = $"opc.tcp://{ipAddress}:{port}";
+            var endpoints = await _opcUaService.DiscoverEndpointsAsync(discoveryUrl);
+
+            // --- CORREZIONE APPLICATA QUI ---
+            // Ho cambiato e.ApplicationName.Text in e.Server.ApplicationName.Text
+            // per accedere correttamente al nome dell'applicazione.
+            var result = endpoints.Select(e => new {
+                ApplicationName = e.Server.ApplicationName.Text,
+                EndpointUrl = e.EndpointUrl,
+                SecurityMode = e.SecurityMode.ToString()
+            }).ToList();
+            // --- FINE CORREZIONE ---
+
+            return Json(result);
         }
-
-        [HttpPost]
-        public async Task<IActionResult> Discover(string ipAddress, string port)
+        catch (System.Exception ex)
         {
-            try
-            {
-                var discoveryUrl = $"opc.tcp://{ipAddress}:{port}";
-                var endpoints = await _opcUaService.DiscoverEndpointsAsync(discoveryUrl);
-                return Ok(endpoints);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Discovery failed for {ip}:{port}", ipAddress, port);
-                return BadRequest(new { message = $"Discovery failed: {ex.Message}" });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Connect(string endpointUrl)
-        {
-            try
-            {
-                await _opcUaService.ConnectAsync(endpointUrl);
-                return Ok(new { message = "Connected successfully." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Connection failed for endpoint {endpointUrl}", endpointUrl);
-                return BadRequest(new { message = $"Connection failed: {ex.Message}" });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Browse(string? nodeId)
-        {
-            try
-            {
-                var nodes = await _opcUaService.BrowseAsync(nodeId);
-                return Ok(nodes);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Browse failed for node {nodeId}", nodeId);
-                return BadRequest(new { message = $"Browse failed: {ex.Message}" });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> ReadValues([FromBody] NodeIdRequest request)
-        {
-            try
-            {
-                var values = await _opcUaService.ReadValuesAsync(request.NodeIds);
-                return Ok(values);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to read values.");
-                return BadRequest(new { message = "Failed to read values." });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> StartLogging(string nodeId, string displayName)
-        {
-            try
-            {
-                await _opcUaService.StartLogging(nodeId, displayName);
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to start logging for node {nodeId}", nodeId);
-                return BadRequest(new { message = "Failed to start logging." });
-            }
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> StopLogging(string nodeId)
-        {
-            try
-            {
-                await _opcUaService.StopLogging(nodeId);
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to stop logging for node {nodeId}", nodeId);
-                return BadRequest(new { message = "Failed to stop logging." });
-            }
-        }
-
-        [HttpGet]
-        public IActionResult GetStatus()
-        {
-            return Ok(new
-            {
-                IsConnected = _opcUaService.IsConnected,
-                EndpointUrl = _opcUaService.ConnectedEndpointUrl
-            });
-        }
-
-        [HttpGet]
-        public async Task<IActionResult> GetLoggedNodes()
-        {
-            var loggedNodes = await _opcUaService.GetLoggedNodeIds();
-            return Ok(loggedNodes);
-        }
-
-        [HttpPost]
-        public IActionResult SaveConnectionInfo([FromBody] OpcUaConnectionSettings settings)
-        {
-            if (settings == null) return BadRequest();
-
-            try
-            {
-                string appSettingsPath = Path.Combine(_env.ContentRootPath, "appsettings.json");
-                var jsonString = System.IO.File.ReadAllText(appSettingsPath);
-                var jsonObj = JsonNode.Parse(jsonString)!.AsObject();
-
-                var connectionSettingsNode = jsonObj["OpcUaConnectionSettings"]?.AsObject() ?? new JsonObject();
-                jsonObj["OpcUaConnectionSettings"] = connectionSettingsNode;
-
-                connectionSettingsNode["LastIpAddress"] = settings.LastIpAddress;
-                connectionSettingsNode["LastPort"] = settings.LastPort;
-
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                var updatedJsonString = jsonObj.ToJsonString(options);
-                System.IO.File.WriteAllText(appSettingsPath, updatedJsonString);
-
-                return Ok(new { message = "Impostazioni di connessione salvate." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Errore durante il salvataggio delle impostazioni di connessione OPC UA.");
-                return StatusCode(500, new { message = "Errore interno del server durante il salvataggio." });
-            }
+            return BadRequest(new { message = $"Discovery fallito: {ex.Message}" });
         }
     }
 
-    public class NodeIdRequest
+    [HttpPost]
+    public async Task<IActionResult> Connect(string endpointUrl)
     {
-        public List<string> NodeIds { get; set; } = new List<string>();
+        try
+        {
+            await _opcUaService.ConnectAsync(endpointUrl);
+            return Ok();
+        }
+        catch (System.Exception ex)
+        {
+            return BadRequest(new { message = $"Connessione fallita: {ex.Message}" });
+        }
     }
+
+    [HttpPost]
+    public async Task<IActionResult> Browse(string? nodeId)
+    {
+        try
+        {
+            var nodes = await _opcUaService.BrowseAsync(nodeId);
+            return Json(nodes);
+        }
+        catch (System.Exception ex)
+        {
+            return BadRequest(new { message = $"Browsing fallito: {ex.Message}" });
+        }
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ReadValues([FromBody] ReadValuesRequest request)
+    {
+        try
+        {
+            var values = await _opcUaService.ReadValuesAsync(request.NodeIds);
+            return Json(values);
+        }
+        catch (System.Exception ex)
+        {
+            return BadRequest(new { message = $"Lettura fallita: {ex.Message}" });
+        }
+    }
+
+    [HttpPost("OpcUa/Start/DbLogging")]
+    public async Task<IActionResult> StartDbLogging(string nodeId, string displayName)
+    {
+        await _opcUaService.StartDbLogging(nodeId, displayName);
+        return Ok();
+    }
+
+    [HttpPost("OpcUa/Stop/DbLogging")]
+    public async Task<IActionResult> StopDbLogging(string nodeId)
+    {
+        await _opcUaService.StopDbLogging(nodeId);
+        return Ok();
+    }
+
+    [HttpPost("OpcUa/Start/TelegramAlarming")]
+    public async Task<IActionResult> StartTelegramAlarming(string nodeId, string displayName)
+    {
+        await _opcUaService.StartTelegramAlarming(nodeId, displayName);
+        return Ok();
+    }
+
+    [HttpPost("OpcUa/Stop/TelegramAlarming")]
+    public async Task<IActionResult> StopTelegramAlarming(string nodeId)
+    {
+        await _opcUaService.StopTelegramAlarming(nodeId);
+        return Ok();
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetStatus()
+    {
+        return Json(new { isConnected = _opcUaService.IsConnected, endpointUrl = _opcUaService.ConnectedEndpointUrl });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetMonitoringStatus()
+    {
+        var status = await _opcUaService.GetMonitoringStatus();
+        return Json(status);
+    }
+}
+
+public class ReadValuesRequest
+{
+    public List<string> NodeIds { get; set; }
 }
