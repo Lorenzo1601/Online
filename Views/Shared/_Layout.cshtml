@@ -140,16 +140,13 @@
 
         /* Responsive adjustments */
         @@media (max-width: 768px) {
-            .navbar-brand
+            .navbar-brand {
+                font-size: 1.3rem;
+            }
 
-        {
-            font-size: 1.3rem;
-        }
-
-        .easter-egg-modal-body {
-            padding: 1rem;
-        }
-
+            .easter-egg-modal-body {
+                padding: 1rem;
+            }
         }
 
         /* Animation for modal appearance */
@@ -187,6 +184,9 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Home" asp-action="OpcUa">Opc-Ua</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Storico">Storico</a>
                         </li>
                     </ul>
                 </div>
