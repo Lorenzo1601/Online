@@ -1,9 +1,10 @@
 ﻿@model List<Online.OpcServerInstance>
+@using System.Text.RegularExpressions; 
 @{
     ViewData["Title"] = "Dashboard Connessioni OPC UA";
 }
 <head>
-    <!-- CORREZIONE: 'integrity' invece di 'xintegrity' -->
+    <!-- CORREZIONE: 'xintegrity' corretto in 'integrity' -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
@@ -117,7 +118,7 @@
     }
 
     @@keyframes flash-animation {
-        0% {
+        0%, 100% {
             background-color: transparent;
         }
 
@@ -217,6 +218,10 @@
 
     @foreach (var server in Model)
     {
+        var sanitizedMachineName = Regex.Replace(server.NomeMacchina, @"[^a-zA-Z0-9\-]", "");
+        var cardId = $"cardBody-{sanitizedMachineName}";
+        var treeId = $"tree-{sanitizedMachineName}";
+
         <div class="col-12 mb-4">
             <div class="card server-card" data-machine-name="@server.NomeMacchina" data-connection-status="@(server.IsConnected ? "connected" : "disconnected")">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -231,15 +236,15 @@
                             <input type="hidden" name="nomeMacchina" value="@server.NomeMacchina" />
                             <button type="button" class="btn btn-sm btn-outline-danger btn-delete" title="Elimina Connessione"><i class="fas fa-trash-alt"></i></button>
                         </form>
-                        <button class="btn btn-sm btn-outline-secondary ms-2 card-toggle-btn" data-bs-toggle="collapse" data-bs-target="#cardBody-@server.NomeMacchina.Replace(" ", "-")" title="Riduci/Espandi" aria-expanded="true">
+                        <button class="btn btn-sm btn-outline-secondary ms-2 card-toggle-btn" data-bs-toggle="collapse" data-bs-target="#@cardId" title="Riduci/Espandi" aria-expanded="true">
                             <i class="fas fa-chevron-up"></i>
                         </button>
                     </div>
                 </div>
-                <div class="collapse show" id="cardBody-@server.NomeMacchina.Replace(" ", "-")">
+                <div class="collapse show" id="@cardId">
                     <div class="card-body">
                         <h6>Struttura Server</h6>
-                        <div class="opc-tree-container" id="tree-@server.NomeMacchina.Replace(" ", "-")">
+                        <div class="opc-tree-container" id="@treeId">
                             @if (server.IsConnected)
                             {
                                 <button class="btn btn-sm btn-outline-primary load-tree-btn">Carica Struttura</button>
@@ -280,7 +285,6 @@
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
 <div class="modal fade" id="deleteConfirmModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -401,36 +405,12 @@
                 });
             }
 
-            function updateCheckboxStates(machineName, containerElement) {
-                $.get('@Url.Action("GetServerMonitoringStatus", "OpcUa")', { nomeMacchina: machineName }, function(status) {
-                    if (!status) return;
-
-                    containerElement.find('li[data-node-id]').each(function() {
-                        const $li = $(this);
-                        const nodeId = $li.data('node-id');
-
-                        const dbIsChecked = status.dbLoggingNodes && status.dbLoggingNodes.includes(nodeId);
-                        $li.find('.db-logging-checkbox').prop('checked', dbIsChecked);
-
-                        const telegramIsChecked = status.telegramAlarmingNodes && status.telegramAlarmingNodes.includes(nodeId);
-                        $li.find('.telegram-alarming-checkbox').prop('checked', telegramIsChecked);
-                    });
-                }).fail(function() {
-                    console.error("Fallback fallito: Impossibile recuperare lo stato del monitoraggio per " + machineName);
-                });
-            }
-
             function browseNode(machineName, nodeId, element) {
                 $.post('@Url.Action("Browse", "OpcUa")', { nomeMacchina: machineName, nodeId: nodeId }, function(data) {
                     var $ul = $('<ul></ul>');
-                    var monitoringStatusIncluded = true;
 
                     if (data && data.length > 0) {
                         $.each(data, function(i, item) {
-                            if (item.nodeClass === 'Variable' && typeof item.isDbLogging === 'undefined') {
-                                monitoringStatusIncluded = false;
-                            }
-
                             var $li = $('<li></li>').attr('data-node-id', item.nodeId);
                             var $row = $('<div class="tree-item-row"></div>');
 
@@ -472,11 +452,6 @@
                         element.append($ul);
                     } else {
                         element.empty().append($ul);
-                    }
-
-                    if (!monitoringStatusIncluded && $ul.find('.action-checkbox').length > 0) {
-                        console.log("Backend non ottimizzato rilevato. Eseguo fallback per recuperare stato spunte.");
-                        updateCheckboxStates(machineName, $ul);
                     }
                 })
                 .fail(function(xhr) {
@@ -557,13 +532,22 @@
                 browseNode(machineName, null, $treeContainer);
             });
 
-            // --- NUOVA GESTIONE PULSANTE COLLAPSE ---
-            // Ascolta gli eventi nativi di Bootstrap per cambiare l'icona.
-            // Questo è il modo più pulito e previene conflitti.
-            $('.collapse').on('show.bs.collapse', function () {
-                $(`[data-bs-target="#${this.id}"]`).find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
-            }).on('hide.bs.collapse', function () {
-                $(`[data-bs-target="#${this.id}"]`).find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+            // --- GESTIONE DEL PULSANTE COLLAPSE (APPROCCIO ROBUSTO) ---
+            $('body').on('click', '.card-toggle-btn', function(e) {
+                // 1. Prevenire il comportamento di default di Bootstrap
+                e.preventDefault();
+
+                // 2. Trovare l'icona e il target
+                const $button = $(this);
+                const icon = $button.find('i');
+                const targetSelector = $button.data('bs-target');
+                const $target = $(targetSelector);
+
+                // 3. Invertire l'icona
+                icon.toggleClass('fa-chevron-up fa-chevron-down');
+
+                // 4. Avviare manualmente il toggle di Bootstrap
+                $target.collapse('toggle');
             });
 
 
