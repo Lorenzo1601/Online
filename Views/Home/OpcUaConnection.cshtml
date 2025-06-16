@@ -1,0 +1,586 @@
+﻿@model List<Online.OpcServerInstance>
+@{
+    ViewData["Title"] = "Dashboard Connessioni OPC UA";
+}
+<head>
+    <!-- CORREZIONE: 'integrity' invece di 'xintegrity' -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<style>
+    body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+
+    .server-card {
+        background-color: #2d2d2d;
+        border: 1px solid #404040;
+        border-radius: 8px;
+    }
+
+        .server-card .card-header {
+            background-color: #333;
+            color: #fff;
+            transition: background-color 0.3s;
+        }
+
+    .status-flash {
+        animation: status-flash-animation 1s ease-out;
+    }
+
+    @@keyframes status-flash-animation {
+        0%, 100% {
+            background-color: #333;
+        }
+
+        50% {
+            background-color: #555;
+        }
+    }
+
+    .opc-tree-container {
+        min-height: 50px;
+        padding: 10px;
+        background-color: #252525;
+        border-radius: 5px;
+    }
+
+        .opc-tree-container ul {
+            list-style-type: none;
+            padding-left: 25px;
+        }
+
+    .tree-item-row {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 5px;
+        transition: background-color 0.2s ease-in-out;
+    }
+
+        .tree-item-row:hover {
+            background-color: #3c3c3c;
+        }
+
+    .node-toggle-icon {
+        width: 20px;
+        text-align: center;
+        color: #b0b0b0;
+        cursor: pointer;
+    }
+
+        .node-toggle-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+    .node-icon {
+        width: 25px;
+        text-align: center;
+        margin-right: 5px;
+    }
+
+        .node-icon .fa-folder {
+            color: #f0ad4e;
+        }
+
+        .node-icon .fa-tag {
+            color: #5bc0de;
+        }
+
+        .node-icon .fa-cogs {
+            color: #b0b0b0;
+        }
+
+    .node-name {
+        color: #e0e0e0;
+        font-weight: 500;
+    }
+
+    .node-details {
+        margin-left: 10px;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.85em;
+        color: #a0a0a0;
+    }
+
+    .status-good {
+        color: #81c784;
+    }
+
+    .status-bad {
+        color: #e57373;
+    }
+
+    .value-flash {
+        animation: flash-animation 1s ease-out;
+    }
+
+    @@keyframes flash-animation {
+        0% {
+            background-color: transparent;
+        }
+
+        25% {
+            background-color: rgba(129, 199, 132, 0.2);
+        }
+
+        100% {
+            background-color: transparent;
+        }
+    }
+
+    .node-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+    }
+
+    .action-checkbox {
+        cursor: pointer;
+        transform: scale(1.2);
+        margin-left: 15px;
+    }
+
+    .action-icon {
+        margin-left: 5px;
+        font-size: 0.9em;
+    }
+
+    .db-log-icon {
+        color: #64b5f6;
+    }
+
+    .telegram-alarm-icon {
+        color: #ffca28;
+    }
+
+    .server-card .card-body h6 {
+        color: #c0c0c0;
+        font-weight: bold;
+        text-transform: uppercase;
+        font-size: 0.9em;
+        letter-spacing: 0.5px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #444;
+        margin-bottom: 15px;
+    }
+
+    .server-card .card-header .text-muted {
+        color: #aab8c2 !important;
+    }
+
+    .opc-tree-container .alert-warning {
+        background-color: rgba(255, 202, 40, 0.1);
+        color: #ffca28;
+        border: 1px solid rgba(255, 202, 40, 0.2);
+    }
+
+    .badge.bg-warning {
+        background-color: #ffc107 !important;
+        color: #000;
+    }
+
+    .modal-content {
+        background-color: #2d2d2d;
+        color: #e0e0e0;
+    }
+
+    .modal-header {
+        border-bottom-color: #444;
+    }
+
+    .modal-footer {
+        border-top-color: #444;
+    }
+</style>
+
+<h1 class="display-4 text-center">@ViewData["Title"]</h1>
+<div class="mb-4">
+    <a asp-action="Index" asp-controller="OpcUa" class="btn btn-outline-primary"><i class="fas fa-plus me-2"></i>Aggiungi Nuovo Server</a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+
+<div class="row">
+    @if (!Model.Any())
+    {
+        <div class="col"><div class="alert alert-info">Nessun server OPC UA configurato. <a asp-action="Index" asp-controller="OpcUa">Aggiungine uno</a> per iniziare.</div></div>
+    }
+
+    @foreach (var server in Model)
+    {
+        <div class="col-12 mb-4">
+            <div class="card server-card" data-machine-name="@server.NomeMacchina" data-connection-status="@(server.IsConnected ? "connected" : "disconnected")">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <h5 class="mb-0 me-3"><i class="fas fa-server me-2"></i> @server.NomeMacchina <small class="text-muted">(@server.IpAddress:@server.Port)</small></h5>
+                        <span class="badge bg-@(server.IsConnected ? "success" : "danger")">@(server.IsConnected ? "CONNESSO" : "DISCONNESSO")</span>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-2 btn-edit" data-bs-toggle="modal" data-bs-target="#editServerModal" data-nome-macchina="@server.NomeMacchina" data-ip-address="@server.IpAddress" data-port="@server.Port" title="Modifica Connessione"><i class="fas fa-pencil-alt"></i></button>
+                        <form asp-action="DeleteServer" asp-controller="OpcUa" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="nomeMacchina" value="@server.NomeMacchina" />
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete" title="Elimina Connessione"><i class="fas fa-trash-alt"></i></button>
+                        </form>
+                        <button class="btn btn-sm btn-outline-secondary ms-2 card-toggle-btn" data-bs-toggle="collapse" data-bs-target="#cardBody-@server.NomeMacchina.Replace(" ", "-")" title="Riduci/Espandi" aria-expanded="true">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="collapse show" id="cardBody-@server.NomeMacchina.Replace(" ", "-")">
+                    <div class="card-body">
+                        <h6>Struttura Server</h6>
+                        <div class="opc-tree-container" id="tree-@server.NomeMacchina.Replace(" ", "-")">
+                            @if (server.IsConnected)
+                            {
+                                <button class="btn btn-sm btn-outline-primary load-tree-btn">Carica Struttura</button>
+                            }
+                            else
+                            {
+                                <div class="alert alert-warning p-2">Server non connesso. Tentativo di riconnessione automatico in corso...</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="modal fade" id="editServerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifica Connessione</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="EditServer" asp-controller="OpcUa" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <input type="hidden" id="edit-original-nome-macchina" name="originalNomeMacchina" />
+                    <div class="mb-3"><label for="edit-nome-macchina" class="form-label">Nome Macchina</label><input type="text" class="form-control" id="edit-nome-macchina" name="NomeMacchina" required></div>
+                    <div class="mb-3"><label for="edit-ip-address" class="form-label">Indirizzo IP</label><input type="text" class="form-control" id="edit-ip-address" name="IP_Address" required></div>
+                    <div class="mb-3"><label for="edit-port" class="form-label">Porta</label><input type="number" class="form-control" id="edit-port" name="Porta" required></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-outline-primary">Salva Modifiche</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Conferma Eliminazione</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sei sicuro di voler eliminare questo server? L'azione è irreversibile.</p>
+                <p>Per confermare, scrivi "<strong>ELIMINA</strong>" nel campo sottostante.</p>
+                <input type="text" class="form-control" id="delete-confirm-input" placeholder="ELIMINA">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-outline-danger" id="confirm-delete-btn" disabled>Conferma Eliminazione</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function() {
+
+            const VALUE_UPDATE_INTERVAL = 5000;
+            const STATUS_POLL_INTERVAL = 10000;
+
+            function pollAllServersStatus() {
+                $.get('@Url.Action("GetAllServersStatus", "OpcUa")', function(statuses) {
+                    $.each(statuses, function(i, status) {
+                        updateCardStatus(status.nomeMacchina, status.isConnected, status.isReconnecting);
+                    });
+                });
+            }
+
+            function updateCardStatus(machineName, isConnected, isReconnecting) {
+                const $card = $(`.server-card[data-machine-name="${machineName}"]`);
+                if ($card.length === 0) return;
+
+                const $cardHeader = $card.find('.card-header');
+                const $badge = $card.find('.card-header .badge');
+                const $treeContainer = $card.find('.opc-tree-container');
+
+                let newStatus;
+                if (isConnected) {
+                    newStatus = 'connected';
+                } else if (isReconnecting) {
+                    newStatus = 'reconnecting';
+                } else {
+                    newStatus = 'disconnected';
+                }
+
+                const oldStatus = $card.data('connection-status');
+
+                if (newStatus !== oldStatus) {
+                    $card.data('connection-status', newStatus);
+                    $cardHeader.addClass('status-flash').one('animationend', () => {
+                        $cardHeader.removeClass('status-flash');
+                    });
+
+                    switch (newStatus) {
+                        case 'connected':
+                            $badge.removeClass('bg-danger bg-warning').addClass('bg-success').text('CONNESSO');
+                            if ($treeContainer.find('ul').length === 0) {
+                                $treeContainer.html('<button class="btn btn-sm btn-outline-primary load-tree-btn">Carica Struttura</button>');
+                            }
+                            break;
+                        case 'reconnecting':
+                            $badge.removeClass('bg-success bg-danger').addClass('bg-warning').text('RICONNESSIONE...');
+                            $treeContainer.html('<div class="alert alert-warning p-2 reconnecting-message">Server non connesso. Tentativo di riconnessione automatico in corso...</div>');
+                            break;
+                        case 'disconnected':
+                            $badge.removeClass('bg-success bg-warning').addClass('bg-danger').text('DISCONNESSO');
+                            $treeContainer.html('<div class="alert alert-warning p-2">Server non connesso.</div>');
+                            break;
+                    }
+                }
+            }
+
+            function updateAllVisibleNodeValues() {
+                $('.server-card').each(function() {
+                    const $card = $(this);
+                    if ($card.data('connection-status') !== 'connected') return;
+
+                    const machineName = $card.data('machine-name');
+                    const $treeContainer = $card.find('.opc-tree-container');
+                    if ($treeContainer.find('li').length === 0) return;
+
+                    const visibleNodes = [];
+                    $treeContainer.find('li[data-node-id]').each(function() {
+                        if ($(this).find('.node-details').is(':visible')) {
+                           visibleNodes.push($(this).data('node-id'));
+                        }
+                    });
+
+                    if (visibleNodes.length > 0) {
+                        $.ajax({
+                            url: '@Url.Action("ReadValues", "OpcUa")', type: 'POST', contentType: 'application/json',
+                            data: JSON.stringify({ nomeMacchina: machineName, nodeIds: visibleNodes }),
+                            success: function(data) {
+                                $.each(data, function(i, item) {
+                                    const $li = $card.find(`li[data-node-id="${item.nodeId.replace(/"/g, '\\"')}"]`);
+                                    const $details = $li.find('.node-details');
+                                    if ($details.length > 0) {
+                                        var statusClass = item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
+                                        var newHtml = `Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`;
+                                        if ($details.html() !== newHtml) {
+                                            $details.html(newHtml).addClass('value-flash').one('animationend', () => $details.removeClass('value-flash'));
+                                        }
+                                    }
+                                });
+                            },
+                            error: function(xhr) { if (xhr.status === 410) updateCardStatus(machineName, false, true); }
+                        });
+                    }
+                });
+            }
+
+            function updateCheckboxStates(machineName, containerElement) {
+                $.get('@Url.Action("GetServerMonitoringStatus", "OpcUa")', { nomeMacchina: machineName }, function(status) {
+                    if (!status) return;
+
+                    containerElement.find('li[data-node-id]').each(function() {
+                        const $li = $(this);
+                        const nodeId = $li.data('node-id');
+
+                        const dbIsChecked = status.dbLoggingNodes && status.dbLoggingNodes.includes(nodeId);
+                        $li.find('.db-logging-checkbox').prop('checked', dbIsChecked);
+
+                        const telegramIsChecked = status.telegramAlarmingNodes && status.telegramAlarmingNodes.includes(nodeId);
+                        $li.find('.telegram-alarming-checkbox').prop('checked', telegramIsChecked);
+                    });
+                }).fail(function() {
+                    console.error("Fallback fallito: Impossibile recuperare lo stato del monitoraggio per " + machineName);
+                });
+            }
+
+            function browseNode(machineName, nodeId, element) {
+                $.post('@Url.Action("Browse", "OpcUa")', { nomeMacchina: machineName, nodeId: nodeId }, function(data) {
+                    var $ul = $('<ul></ul>');
+                    var monitoringStatusIncluded = true;
+
+                    if (data && data.length > 0) {
+                        $.each(data, function(i, item) {
+                            if (item.nodeClass === 'Variable' && typeof item.isDbLogging === 'undefined') {
+                                monitoringStatusIncluded = false;
+                            }
+
+                            var $li = $('<li></li>').attr('data-node-id', item.nodeId);
+                            var $row = $('<div class="tree-item-row"></div>');
+
+                            if (item.hasChildren) $row.append('<i class="node-toggle-icon fa-solid fa-chevron-right"></i>');
+                            else $row.append('<span class="node-toggle-icon"></span>');
+
+                            var iconClass = 'fa-solid fa-tag';
+                            if (item.nodeClass === 'Object') iconClass = 'fa-solid fa-folder';
+                            if (item.nodeClass === 'Method') iconClass = 'fa-solid fa-cogs';
+                            $row.append(`<span class="node-icon"><i class="${iconClass}"></i></span>`);
+                            $row.append($('<span class="node-name"></span>').text(item.displayName));
+
+                            if (item.nodeClass === 'Variable') {
+                                var statusClass = item.status && item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
+                                $row.append($('<span class="node-details"></span>').html(`Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`));
+
+                                const $actionsDiv = $('<div class="node-actions"></div>');
+
+                                const dbChecked = item.isDbLogging ? 'checked' : '';
+                                const telegramChecked = item.isTelegramAlarming ? 'checked' : '';
+
+                                $actionsDiv.append(`<input type="checkbox" class="action-checkbox db-logging-checkbox" data-display-name="${item.displayName}" title="Registra su Database" ${dbChecked} /><i class="fas fa-database action-icon db-log-icon"></i>`);
+                                $actionsDiv.append(`<input type="checkbox" class="action-checkbox telegram-alarming-checkbox" data-display-name="${item.displayName}" title="Invia allarme Telegram" ${telegramChecked} /><i class="fas fa-bell action-icon telegram-alarm-icon"></i>`);
+
+                                $row.append($actionsDiv);
+                            }
+                            $li.append($row);
+                            $ul.append($li);
+                        });
+                    } else {
+                         if (element.is('li')) {
+                            element.find('.node-toggle-icon').removeClass('fa-solid fa-chevron-right expanded');
+                         } else {
+                            $ul.append('<li>Nessun nodo trovato.</li>');
+                         }
+                    }
+
+                    if(element.is('li')) {
+                        element.append($ul);
+                    } else {
+                        element.empty().append($ul);
+                    }
+
+                    if (!monitoringStatusIncluded && $ul.find('.action-checkbox').length > 0) {
+                        console.log("Backend non ottimizzato rilevato. Eseguo fallback per recuperare stato spunte.");
+                        updateCheckboxStates(machineName, $ul);
+                    }
+                })
+                .fail(function(xhr) {
+                    console.error("Chiamata a Browse fallita:", xhr);
+                    var errorMessage = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : "Errore nel caricare la struttura.";
+                    if (xhr.status === 410) {
+                        element.html(`<div class="alert alert-warning p-2">${errorMessage}</div>`);
+                        updateCardStatus(machineName, false, true);
+                    } else {
+                        element.html(`<div class="alert alert-danger">${errorMessage}</div>`);
+                    }
+                });
+            }
+
+            function handleMonitoringChange(checkbox) {
+                const $checkbox = $(checkbox);
+                const machineName = $checkbox.closest('.server-card').data('machine-name');
+                const nodeId = $checkbox.closest('li').data('node-id');
+                const displayName = $checkbox.data('display-name');
+                const isChecked = $checkbox.is(':checked');
+                let actionType = $checkbox.hasClass('db-logging-checkbox') ? 'DbLogging' : 'TelegramAlarming';
+
+                const url = isChecked
+                    ? '@Url.Action("Start", "OpcUa")/' + actionType
+                    : '@Url.Action("Stop", "OpcUa")/' + actionType;
+
+                $.post(url, { nomeMacchina: machineName, nodeId: nodeId, displayName: displayName })
+                    .fail(() => {
+                        console.error(`Errore durante l'aggiornamento del monitoraggio ${actionType}.`);
+                        $checkbox.prop('checked', !isChecked);
+                    });
+            }
+
+            // Avvio dei timer e associazione degli eventi
+            setInterval(pollAllServersStatus, STATUS_POLL_INTERVAL);
+            setInterval(updateAllVisibleNodeValues, VALUE_UPDATE_INTERVAL);
+
+            $('#editServerModal').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget);
+                var nomeMacchina = button.data('nome-macchina');
+                var ipAddress = button.data('ip-address');
+                var port = button.data('port');
+                var modal = $(this);
+                modal.find('#edit-original-nome-macchina').val(nomeMacchina);
+                modal.find('#edit-nome-macchina').val(nomeMacchina);
+                modal.find('#edit-ip-address').val(ipAddress);
+                modal.find('#edit-port').val(port);
+            });
+
+            let formToDelete = null;
+            $('body').on('click', '.btn-delete', function(e) {
+                e.preventDefault();
+                formToDelete = $(this).closest('form');
+                $('#deleteConfirmModal').modal('show');
+            });
+
+            $('#delete-confirm-input').on('input', function() {
+                $('#confirm-delete-btn').prop('disabled', $(this).val() !== 'ELIMINA');
+            });
+
+            $('#confirm-delete-btn').on('click', function() {
+                if (formToDelete) {
+                    formToDelete.submit();
+                }
+            });
+
+            $('#deleteConfirmModal').on('hidden.bs.modal', function () {
+                $('#delete-confirm-input').val('');
+                $('#confirm-delete-btn').prop('disabled', true);
+                formToDelete = null;
+            });
+
+            $('body').on('click', '.load-tree-btn', function() {
+                const $button = $(this);
+                const machineName = $button.closest('.server-card').data('machine-name');
+                const $treeContainer = $button.closest('.opc-tree-container');
+                $button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Caricamento...');
+                browseNode(machineName, null, $treeContainer);
+            });
+
+            // --- NUOVA GESTIONE PULSANTE COLLAPSE ---
+            // Ascolta gli eventi nativi di Bootstrap per cambiare l'icona.
+            // Questo è il modo più pulito e previene conflitti.
+            $('.collapse').on('show.bs.collapse', function () {
+                $(`[data-bs-target="#${this.id}"]`).find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+            }).on('hide.bs.collapse', function () {
+                $(`[data-bs-target="#${this.id}"]`).find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+            });
+
+
+            $('body').on('click', '.node-toggle-icon', function() {
+                var $icon = $(this);
+                var $li = $icon.closest('li');
+                var machineName = $icon.closest('.server-card').data('machine-name');
+                if ($li.children('ul').length > 0) {
+                    $li.children('ul').remove();
+                    $icon.removeClass('expanded');
+                } else if ($icon.hasClass('fa-chevron-right')) {
+                    browseNode(machineName, $li.data('node-id'), $li);
+                    $icon.addClass('expanded');
+                }
+            });
+
+            $('body').on('change', '.action-checkbox', function() { handleMonitoringChange(this); });
+        });
+    </script>
+}

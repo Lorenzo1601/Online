@@ -1,129 +1,155 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Online;
-using System.Collections.Generic;
-using System.Linq;
+using Online.Models;
 using System.Threading.Tasks;
 
-public class OpcUaController : Controller
+namespace Online.Controllers
 {
-    private readonly OpcUaService _opcUaService;
-
-    public OpcUaController(OpcUaService opcUaService)
+    public class OpcUaController : Controller
     {
-        _opcUaService = opcUaService;
-    }
+        private readonly OpcUaMultiServerService _opcUaService;
 
-    [HttpPost]
-    public async Task<IActionResult> Discover(string ipAddress, string port)
-    {
-        try
+        public OpcUaController(OpcUaMultiServerService opcUaService)
         {
-            string discoveryUrl = $"opc.tcp://{ipAddress}:{port}";
-            var endpoints = await _opcUaService.DiscoverEndpointsAsync(discoveryUrl);
-
-            // --- CORREZIONE APPLICATA QUI ---
-            // Ho cambiato e.ApplicationName.Text in e.Server.ApplicationName.Text
-            // per accedere correttamente al nome dell'applicazione.
-            var result = endpoints.Select(e => new {
-                ApplicationName = e.Server.ApplicationName.Text,
-                EndpointUrl = e.EndpointUrl,
-                SecurityMode = e.SecurityMode.ToString()
-            }).ToList();
-            // --- FINE CORREZIONE ---
-
-            return Json(result);
+            _opcUaService = opcUaService;
         }
-        catch (System.Exception ex)
-        {
-            return BadRequest(new { message = $"Discovery fallito: {ex.Message}" });
-        }
-    }
 
-    [HttpPost]
-    public async Task<IActionResult> Connect(string endpointUrl)
-    {
-        try
+        public IActionResult Index() => View("~/Views/Home/OpcUa.cshtml");
+
+        public IActionResult Connection()
         {
-            await _opcUaService.ConnectAsync(endpointUrl);
+            var serverInstances = _opcUaService.GetAllServerInstances();
+            return View("~/Views/Home/OpcUaConnection.cshtml", serverInstances);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> AddServer(string nomeMacchina, string ipAddress, int port)
+        {
+            if (string.IsNullOrWhiteSpace(nomeMacchina))
+            {
+                TempData["Error"] = "Il nome macchina è obbligatorio.";
+                return RedirectToAction("Index", "Home");
+            }
+            await _opcUaService.AddAndConnectServerAsync(nomeMacchina, ipAddress, port);
+            return RedirectToAction("Connection");
+        }
+
+        [HttpPost("OpcUa/EditServer")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditServer(ConnessioneEditModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessage"] = "I dati per la modifica non sono validi.";
+                return RedirectToAction("Connection");
+            }
+            try
+            {
+                await _opcUaService.EditServerAsync(model);
+                TempData["SuccessMessage"] = "Connessione aggiornata con successo. La pagina verrà ricaricata.";
+            }
+            catch (System.Exception ex)
+            {
+                TempData["ErrorMessage"] = $"Errore durante la modifica: {ex.Message}";
+            }
+            return RedirectToAction("Connection");
+        }
+
+        [HttpPost("OpcUa/DeleteServer")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteServer(string nomeMacchina)
+        {
+            if (string.IsNullOrEmpty(nomeMacchina)) return BadRequest();
+            await _opcUaService.DeleteServerAsync(nomeMacchina);
+            TempData["SuccessMessage"] = $"Connessione '{nomeMacchina}' e i relativi log sono stati eliminati.";
+            return RedirectToAction("Connection");
+        }
+
+        [HttpGet("OpcUa/GetAllServersStatus")]
+        public IActionResult GetAllServersStatus()
+        {
+            var statuses = _opcUaService.GetAllServerInstances()
+                .Select(i => new { nomeMacchina = i.NomeMacchina, isConnected = i.IsConnected, isReconnecting = i.IsAttemptingReconnection })
+                .ToList();
+            return Json(statuses);
+        }
+
+        [HttpPost("OpcUa/Browse")]
+        public async Task<IActionResult> Browse(string nomeMacchina, string? nodeId)
+        {
+            var instance = _opcUaService.GetServerInstance(nomeMacchina);
+            if (instance == null) return NotFound("Server non trovato.");
+            try
+            {
+                var nodes = await instance.BrowseAsync(nodeId);
+                return Json(nodes);
+            }
+            catch (System.InvalidOperationException ex)
+            {
+                return StatusCode(410, new { message = ex.Message });
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(new { message = $"Browsing fallito: {ex.Message}" });
+            }
+        }
+
+        [HttpPost("OpcUa/ReadValues")]
+        public async Task<IActionResult> ReadValues([FromBody] ReadValuesRequest request)
+        {
+            if (request == null || string.IsNullOrEmpty(request.NomeMacchina)) return BadRequest("Richiesta non valida.");
+            var instance = _opcUaService.GetServerInstance(request.NomeMacchina);
+            if (instance == null) return NotFound("Server non trovato.");
+            try
+            {
+                var values = await instance.ReadValuesAsync(request.NodeIds);
+                return Json(values);
+            }
+            catch (System.InvalidOperationException ex)
+            {
+                return StatusCode(410, new { message = ex.Message });
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(new { message = $"Lettura fallita: {ex.Message}" });
+            }
+        }
+
+        [HttpPost("OpcUa/Start/DbLogging")]
+        public async Task<IActionResult> StartDbLogging(string nomeMacchina, string nodeId, string displayName)
+        {
+            var i = _opcUaService.GetServerInstance(nomeMacchina);
+            if (i == null) return NotFound();
+            await i.StartDbLogging(nodeId, displayName);
             return Ok();
         }
-        catch (System.Exception ex)
+
+        [HttpPost("OpcUa/Stop/DbLogging")]
+        public async Task<IActionResult> StopDbLogging(string nomeMacchina, string nodeId)
         {
-            return BadRequest(new { message = $"Connessione fallita: {ex.Message}" });
+            var i = _opcUaService.GetServerInstance(nomeMacchina);
+            if (i == null) return NotFound();
+            await i.StopDbLogging(nodeId);
+            return Ok();
+        }
+
+        [HttpPost("OpcUa/Start/TelegramAlarming")]
+        public async Task<IActionResult> StartTelegramAlarming(string nomeMacchina, string nodeId, string displayName)
+        {
+            var i = _opcUaService.GetServerInstance(nomeMacchina);
+            if (i == null) return NotFound();
+            await i.StartTelegramAlarming(nodeId, displayName);
+            return Ok();
+        }
+
+        [HttpPost("OpcUa/Stop/TelegramAlarming")]
+        public async Task<IActionResult> StopTelegramAlarming(string nomeMacchina, string nodeId)
+        {
+            var i = _opcUaService.GetServerInstance(nomeMacchina);
+            if (i == null) return NotFound();
+            await i.StopTelegramAlarming(nodeId);
+            return Ok();
         }
     }
 
-    [HttpPost]
-    public async Task<IActionResult> Browse(string? nodeId)
-    {
-        try
-        {
-            var nodes = await _opcUaService.BrowseAsync(nodeId);
-            return Json(nodes);
-        }
-        catch (System.Exception ex)
-        {
-            return BadRequest(new { message = $"Browsing fallito: {ex.Message}" });
-        }
-    }
-
-    [HttpPost]
-    public async Task<IActionResult> ReadValues([FromBody] ReadValuesRequest request)
-    {
-        try
-        {
-            var values = await _opcUaService.ReadValuesAsync(request.NodeIds);
-            return Json(values);
-        }
-        catch (System.Exception ex)
-        {
-            return BadRequest(new { message = $"Lettura fallita: {ex.Message}" });
-        }
-    }
-
-    [HttpPost("OpcUa/Start/DbLogging")]
-    public async Task<IActionResult> StartDbLogging(string nodeId, string displayName)
-    {
-        await _opcUaService.StartDbLogging(nodeId, displayName);
-        return Ok();
-    }
-
-    [HttpPost("OpcUa/Stop/DbLogging")]
-    public async Task<IActionResult> StopDbLogging(string nodeId)
-    {
-        await _opcUaService.StopDbLogging(nodeId);
-        return Ok();
-    }
-
-    [HttpPost("OpcUa/Start/TelegramAlarming")]
-    public async Task<IActionResult> StartTelegramAlarming(string nodeId, string displayName)
-    {
-        await _opcUaService.StartTelegramAlarming(nodeId, displayName);
-        return Ok();
-    }
-
-    [HttpPost("OpcUa/Stop/TelegramAlarming")]
-    public async Task<IActionResult> StopTelegramAlarming(string nodeId)
-    {
-        await _opcUaService.StopTelegramAlarming(nodeId);
-        return Ok();
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> GetStatus()
-    {
-        return Json(new { isConnected = _opcUaService.IsConnected, endpointUrl = _opcUaService.ConnectedEndpointUrl });
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> GetMonitoringStatus()
-    {
-        var status = await _opcUaService.GetMonitoringStatus();
-        return Json(status);
-    }
-}
-
-public class ReadValuesRequest
-{
-    public List<string> NodeIds { get; set; }
+    public class ReadValuesRequest { public string NomeMacchina { get; set; } public System.Collections.Generic.List<string> NodeIds { get; set; } }
 }
