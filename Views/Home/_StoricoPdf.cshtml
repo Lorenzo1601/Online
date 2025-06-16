@@ -1,0 +1,80 @@
+﻿@model IEnumerable<online.Models.MacchinaOpcUaLog>
+@{
+    Layout = null; // Impedisce l'uso del layout principale
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Storico Dati OPC UA</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10pt;
+        }
+
+        h1 {
+            text-align: center;
+            color: #444;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Storico Dati OPC UA</h1>
+    <p>Report generato il: @DateTime.Now.ToString("dd/MM/yyyy HH:mm")</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Nome Tag</th>
+                <th>Nodo</th>
+                <th>Valore</th>
+                <th>Qualità</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.Nome</td>
+                        <td>@item.Nodo</td>
+                        <td>@item.Valore</td>
+                        <td>@item.Qualita</td>
+                        <td>@item.Timestamp.ToString("g")</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="5" style="text-align:center;">Nessun dato da mostrare.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</body>
+</html>

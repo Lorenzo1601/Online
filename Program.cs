@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Online.Data;
 using Online;
+using Online.Data;
 using Online.Models;
-using Online.Services; // Assicurati che questo namespace sia corretto
+using Online.Services;
+using Rotativa.AspNetCore; // Assicurati che questo namespace sia corretto
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,6 +49,8 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+RotativaConfiguration.Setup(app.Environment.WebRootPath, "Rotativa");
 
 app.UseRouting();
 

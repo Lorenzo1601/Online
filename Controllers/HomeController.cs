@@ -175,8 +175,8 @@ namespace Online.Controllers
                 {
                     _logger.LogInformation("La chiave primaria è cambiata. Procedo con rimozione e aggiunta.");
                     var existingWithNewKey = await _context.Macchine
-                                                              .AsNoTracking()
-                                                              .FirstOrDefaultAsync(m => m.NomeMacchina == editModel.NomeMacchina && m.IP_Address == editModel.IP_Address);
+                                                            .AsNoTracking()
+                                                            .FirstOrDefaultAsync(m => m.NomeMacchina == editModel.NomeMacchina && m.IP_Address == editModel.IP_Address);
 
                     if (existingWithNewKey != null)
                     {
@@ -347,17 +347,7 @@ namespace Online.Controllers
 
         private string EscapeMarkdownV2(string text) { if (string.IsNullOrEmpty(text)) return string.Empty; var specialChars = new[] { "_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!" }; foreach (var c in specialChars) text = text.Replace(c, "\\" + c); return text; }
 
-        [HttpGet]
-        public async Task<IActionResult> ExportToCsv()
-        {
-            var macchine = await _context.Macchine.OrderBy(m => m.NomeMacchina).ToListAsync();
-            var builder = new StringBuilder();
-            builder.AppendLine("NomeMacchina,IP_Address");
-            foreach (var m in macchine) builder.AppendLine($"{EscapeCsvField(m.NomeMacchina)},{EscapeCsvField(m.IP_Address)}");
-            return File(Encoding.UTF8.GetBytes(builder.ToString()), "text/csv", $"macchine_{DateTime.Now:yyyyMMddHHmmss}.csv");
-        }
-
-        private string EscapeCsvField(string field) { if (string.IsNullOrEmpty(field)) return string.Empty; if (field.Contains(",") || field.Contains("\"") || field.Contains("\n") || field.Contains("\r")) return $"\"{field.Replace("\"", "\"\"")}\""; return field; }
+        private string EscapeCsvField(string field) { if (string.IsNullOrEmpty(field)) return string.Empty; if (field.Contains(";") || field.Contains("\"") || field.Contains("\n") || field.Contains("\r")) return $"\"{field.Replace("\"", "\"\"")}\""; return field; }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -415,6 +405,95 @@ namespace Online.Controllers
             _logger.LogInformation("Caricamento pagina OpcUa.");
             return View();
         }
+
+        /// <summary>
+        /// Action per la pagina dello storico dei log OPC UA.
+        /// </summary>
+        public async Task<IActionResult> Storico(string nomeMacchina, string searchString)
+        {
+            _logger.LogInformation("Caricamento pagina Storico con filtri: Macchina={NomeMacchina}, Ricerca={SearchString}", nomeMacchina, searchString);
+
+            // Passa i filtri attuali alla vista per poterli mostrare nei campi di input
+            ViewData["CurrentFilter"] = searchString;
+            ViewData["SelectedMacchina"] = nomeMacchina;
+
+            // Recupera la lista di tutte le macchine uniche per popolare il dropdown dalla tabella Connessioni
+            var macchineList = await _context.Connessioni
+                                             .Select(c => c.NomeMacchina)
+                                             .Distinct()
+                                             .OrderBy(nome => nome)
+                                             .ToListAsync();
+            ViewData["Macchine"] = macchineList;
+
+            // Inizia la query per recuperare i log
+            var logsQuery = from l in _context.MacchineOpcUaLog
+                            select l;
+
+            // Applica il filtro per macchina, se selezionata
+            if (!string.IsNullOrEmpty(nomeMacchina))
+            {
+                logsQuery = logsQuery.Where(l => l.NomeMacchina == nomeMacchina);
+            }
+
+            // Applica il filtro per nome tag, se inserito
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                logsQuery = logsQuery.Where(l => l.Nome.Contains(searchString));
+            }
+
+            // Ordina i risultati dal più recente al più vecchio e recuperali
+            var filteredLogs = await logsQuery.OrderByDescending(l => l.Timestamp).ToListAsync();
+
+            // Invia i log filtrati alla vista
+            return View(filteredLogs);
+        }
+
+        // --- NUOVE AZIONI PER L'ESPORTAZIONE ---
+
+        [HttpGet]
+        public async Task<IActionResult> ExportToExcel(string nomeMacchina, string searchString)
+        {
+            // 1. Recupera i dati filtrati (stessa logica dell'azione Storico)
+            var logsQuery = _context.MacchineOpcUaLog.AsQueryable();
+            if (!string.IsNullOrEmpty(nomeMacchina)) { logsQuery = logsQuery.Where(l => l.NomeMacchina == nomeMacchina); }
+            if (!string.IsNullOrEmpty(searchString)) { logsQuery = logsQuery.Where(l => l.Nome.Contains(searchString)); }
+            var data = await logsQuery.OrderByDescending(l => l.Timestamp).ToListAsync();
+
+            // 2. Genera il contenuto del file CSV
+            var builder = new StringBuilder();
+            // Intestazione
+            builder.AppendLine("Nome Tag;Nodo;Valore;Qualita;Timestamp");
+
+            // Righe di dati
+            foreach (var item in data)
+            {
+                builder.AppendLine($"{EscapeCsvField(item.Nome)};{EscapeCsvField(item.Nodo)};{EscapeCsvField(item.Valore)};{EscapeCsvField(item.Qualita)};{item.Timestamp:dd/MM/yyyy HH:mm:ss}");
+            }
+
+            // 3. Restituisce il file per il download
+            string fileName = $"Storico_{DateTime.Now:yyyyMMddHHmmss}.csv";
+            return File(Encoding.UTF8.GetBytes(builder.ToString()), "text/csv", fileName);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ExportToPdf(string nomeMacchina, string searchString)
+        {
+            // 1. Recupera i dati filtrati (stessa logica dell'azione Storico)
+            var logsQuery = _context.MacchineOpcUaLog.AsQueryable();
+            if (!string.IsNullOrEmpty(nomeMacchina)) { logsQuery = logsQuery.Where(l => l.NomeMacchina == nomeMacchina); }
+            if (!string.IsNullOrEmpty(searchString)) { logsQuery = logsQuery.Where(l => l.Nome.Contains(searchString)); }
+            var data = await logsQuery.OrderByDescending(l => l.Timestamp).ToListAsync();
+
+            // 2. Restituisce una vista specifica per il PDF come file PDF usando Rotativa
+            string fileName = $"Storico_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+            return new Rotativa.AspNetCore.ViewAsPdf("_StoricoPdf", data)
+            {
+                FileName = fileName,
+                PageOrientation = Rotativa.AspNetCore.Options.Orientation.Landscape,
+                PageSize = Rotativa.AspNetCore.Options.Size.A4
+            };
+        }
+
 
         private bool MacchinaExists(string nomeMacchina, string ipAddress) { return _context.Macchine.Any(e => e.NomeMacchina == nomeMacchina && e.IP_Address == ipAddress); }
         public IActionResult Privacy() { return View(); }
