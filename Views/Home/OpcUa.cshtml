@@ -1,8 +1,7 @@
 ﻿@using Microsoft.Extensions.Configuration
-@using Microsoft.Extensions.Options
 @inject IConfiguration Configuration
 @{
-    ViewData["Title"] = "OPC UA Browser";
+    ViewData["Title"] = "Configurazione OPC UA";
     var settingsModel = new Online.Models.SettingsViewModel
     {
         RetentionDays = Configuration.GetValue<int>("CleanupSettings:RetentionDays", 7),
@@ -15,43 +14,24 @@
 <head>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
-
 <style>
-    /* Dark Theme General Styles */
     body {
         background-color: #1a1a1a;
         color: #e0e0e0;
     }
 
-    .display-4 {
-        color: #ffffff;
-    }
-
-    /* Dark Card Styles */
     .card {
         background-color: #2d2d2d;
         border: 1px solid #404040;
         border-radius: 8px;
-        color: #e0e0e0;
     }
 
     .card-header {
-        background-color: #333333 !important;
-        color: #ffffff !important;
+        background-color: #333;
+        color: #ffffff;
         border-bottom: 1px solid #404040;
     }
 
-    .card-body {
-        background-color: #2d2d2d;
-    }
-
-    .card-footer {
-        background-color: #2d2d2d;
-        border-top: 1px solid #404040;
-        color: #b0b0b0;
-    }
-
-    /* Dark Form Controls */
     .form-control {
         background-color: #333333;
         color: #e0e0e0;
@@ -73,124 +53,21 @@
         color: #b0b0b0;
     }
 
+    .btn-primary {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+    }
+
     .text-muted {
         color: #a0a0a0 !important;
     }
 
-    /* Connection Form & Spinner */
-    .opc-connection-form .form-group {
-        margin-right: 15px;
-    }
-
-    .btn-discover-custom {
-        background-color: transparent;
-        border: 2px solid #81c784;
-        color: #81c784;
-        font-weight: bold;
-        transition: all 0.3s ease-in-out;
-        padding: 0.375rem 1.5rem;
-    }
-
-        .btn-discover-custom:hover {
-            background-color: #81c784;
-            color: #1a1a1a;
-        }
-
-    /* --- NEW CUSTOM SAVE BUTTON STYLE --- */
-    .btn-save-custom {
-        background-color: transparent;
-        border: 2px solid #64b5f6; /* Blue outline */
-        color: #64b5f6; /* Blue text */
-        font-weight: bold;
-        transition: all 0.3s ease-in-out;
-    }
-
-        .btn-save-custom:hover {
-            background-color: #64b5f6; /* Blue background on hover */
-            color: #1a1a1a; /* Dark text on hover */
-        }
-
-    .spinner-dots {
-        display: none;
-        margin-left: 20px;
-    }
-
-        .spinner-dots > div {
-            width: 14px;
-            height: 14px;
-            background-color: #81c784; /* Green spinner */
-            border-radius: 100%;
-            display: inline-block;
-            animation: sk-bouncedelay 1.4s infinite ease-in-out both;
-        }
-
-        .spinner-dots .bounce1 {
-            animation-delay: -0.32s;
-        }
-
-        .spinner-dots .bounce2 {
-            animation-delay: -0.16s;
-        }
-
-    @@keyframes sk-bouncedelay {
-        0%, 80%, 100% {
-            transform: scale(0);
-        }
-
-        40% {
-            transform: scale(1.0);
-        }
-    }
-
-    /* Dark Alerts */
-    .alert-success {
-        background-color: #2e7d32;
-        color: #e8f5e9;
-        border-color: #388e3c;
-    }
-
-    .alert-danger {
-        background-color: #c62828;
-        color: #ffebee;
-        border-color: #d32f2f;
-    }
-
-    /* Endpoint List Styles */
-    #endpoints-container {
-        display: none;
-    }
-
-    .endpoint-item {
-        padding: 10px;
-        border: 1px solid #404040;
-        border-radius: 5px;
-        margin-bottom: 5px;
-        cursor: pointer;
-        background-color: #333;
-        transition: background-color 0.2s ease-in-out;
-    }
-
-        .endpoint-item:hover {
-            background-color: #3c3c3c;
-        }
-
-        .endpoint-item.active {
-            background-color: #64b5f6;
-            color: #1a1a1a;
-            border-color: #64b5f6;
-            font-weight: bold;
-        }
-
-    .endpoint-url {
-        font-size: 0.8em;
-        color: #b0b0b0;
-    }
-
-    .endpoint-item.active .endpoint-url {
-        color: #2d2d2d;
-    }
-
-    /* Collapsible Headers */
+    /* Stili per la sezione ripristinata */
     .collapsible-header {
         cursor: pointer;
         display: flex;
@@ -198,498 +75,130 @@
         align-items: center;
     }
 
-    #endpoints-toggle-icon, #settings-toggle-icon {
+    #settings-toggle-icon {
         transition: transform 0.3s ease-in-out;
     }
 
-        #endpoints-toggle-icon.collapsed, #settings-toggle-icon.collapsed {
+        #settings-toggle-icon.collapsed {
             transform: rotate(-180deg);
         }
 
-    /* Tree View Styles */
-    #opc-tree ul {
-        list-style-type: none;
-        padding-left: 25px;
-    }
-
-    #opc-tree li {
-        padding: 2px 0;
-        border: none;
-    }
-
-    .tree-item-row {
-        display: flex;
-        align-items: center;
-        padding: 4px 8px;
-        border-radius: 5px;
-        transition: background-color 0.2s ease-in-out;
-    }
-
-        .tree-item-row:hover {
-            background-color: #3c3c3c;
-        }
-
-    .node-toggle-icon {
-        width: 20px;
-        text-align: center;
-        color: #b0b0b0;
-        cursor: pointer;
-        transition: transform 0.2s ease-in-out;
-    }
-
-        .node-toggle-icon.expanded {
-            transform: rotate(90deg);
-        }
-
-    .node-icon {
-        width: 25px;
-        text-align: center;
-        margin-right: 5px;
-    }
-
-        .node-icon .fa-folder {
-            color: #f0ad4e;
-        }
-        /* Orange */
-        .node-icon .fa-tag {
-            color: #5bc0de;
-        }
-        /* Info Blue */
-        .node-icon .fa-cogs {
-            color: #b0b0b0;
-        }
-    /* Grey */
-
-    .node-name {
-        font-weight: 500;
-        cursor: default;
-    }
-
-    .node-details {
-        margin-left: 10px;
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 0.85em;
-        color: #c0c0c0;
-        padding-right: 10px;
-        white-space: nowrap;
-    }
-
-    .status-good {
-        color: #81c784; /* Light Green */
+    .btn-save-custom {
+        background-color: transparent;
+        border: 2px solid #64b5f6;
+        color: #64b5f6;
         font-weight: bold;
+        transition: all 0.3s ease-in-out;
     }
 
-    .status-bad {
-        color: #e57373; /* Light Red */
-        font-weight: bold;
-    }
-
-    .value-flash {
-        animation: flash-animation 1s ease-out;
-    }
-
-    @@keyframes flash-animation {
-        0% {
-            background-color: transparent;
+        .btn-save-custom:hover {
+            background-color: #64b5f6;
+            color: #1a1a1a;
         }
 
-        25% {
-            background-color: rgba(129, 199, 132, 0.2);
-        }
-        /* Faded green flash */
-        100% {
-            background-color: transparent;
-        }
+    /* --- INIZIO CORREZIONE COLORI --- */
+    .settings-card .card-body h5 {
+        color: #e0e0e0; /* Bianco per i titoli di sezione */
+        margin-top: 1rem;
+        border-bottom: 1px solid #444;
+        padding-bottom: 0.5rem;
     }
 
-    /* --- MODIFIED: Styles for the two checkboxes --- */
-    .node-actions {
-        margin-left: auto;
-        display: flex;
-        align-items: center;
+    .settings-card .card-footer strong {
+        color: #ffc107; /* Giallo ambrato per la nota importante */
     }
-
-    .action-checkbox {
-        cursor: pointer;
-        transform: scale(1.2);
-        margin-left: 15px; /* Space between checkboxes */
-    }
-
-    .action-icon {
-        margin-left: 5px;
-        font-size: 0.9em;
-    }
-
-    .db-log-icon {
-        color: #64b5f6; /* Blue for DB */
-    }
-
-    .telegram-alarm-icon {
-        color: #ffca28; /* Yellow for alarm */
-    }
-    /* --- END MODIFICATION --- */
-
-
-    @@media (max-width: 768px) {
-        .opc-connection-form {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-            .opc-connection-form .form-group {
-                margin-right: 0;
-                margin-bottom: 10px;
-            }
-    }
+    /* --- FINE CORREZIONE COLORI --- */
 </style>
 
-<div class="text-center">
-    <h1 class="display-4">@ViewData["Title"]</h1>
-</div>
+<h1 class="display-4 text-center">@ViewData["Title"]</h1>
 
-<div class="card shadow-sm mt-4">
-    <div class="card-header">
-        Connessione al Discovery Server
-    </div>
-    <div class="card-body">
-        <div class="d-flex align-items-end opc-connection-form">
-            <div class="form-group flex-grow-1">
-                <label for="opcServerIp" class="mb-1"><strong>Indirizzo IP Server</strong></label>
-                <input type="text" id="opcServerIp" class="form-control" placeholder="es. 172.20.32.10">
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <!-- Card per Aggiungere Server -->
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Aggiungi un nuovo Server OPC UA</h5>
             </div>
-            <div class="form-group">
-                <label for="opcServerPort" class="mb-1"><strong>Porta</strong></label>
-                <input type="text" id="opcServerPort" class="form-control" placeholder="es. 62841" style="max-width: 120px;">
+            <div class="card-body">
+                <form asp-controller="OpcUa" asp-action="AddServer" method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="mb-3">
+                        <label for="nomeMacchina" class="form-label"><strong>Nome Descrittivo Macchina</strong></label>
+                        <input type="text" id="nomeMacchina" name="nomeMacchina" class="form-control" placeholder="Es. Pressa 1, Linea Confezionamento" required>
+                        <div class="form-text">Questo nome identificherà il server nella dashboard.</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <label for="ipAddress" class="form-label"><strong>Indirizzo IP Server</strong></label>
+                            <input type="text" id="ipAddress" name="ipAddress" class="form-control" placeholder="es. 127.0.0.1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="port" class="form-label"><strong>Porta</strong></label>
+                            <input type="number" id="port" name="port" class="form-control" placeholder="es. 48010" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mt-4">
+                        <i class="fas fa-plus-circle me-2"></i>Aggiungi e Connetti Server
+                    </button>
+                </form>
             </div>
-            <div class="form-group">
-                <button id="discoverBtn" class="btn btn-discover-custom">Trova Server</button>
+        </div>
+
+        <!-- INIZIO SEZIONE RIPRISTINATA: Impostazioni Pulizia DB -->
+        <div class="card shadow-sm mt-4 settings-card">
+            <div class="card-header collapsible-header" id="toggle-settings-header">
+                <h5 class="mb-0">Impostazioni di Pulizia del Database</h5>
+                <i class="fas fa-chevron-up" id="settings-toggle-icon"></i>
             </div>
-            <div id="spinner" class="spinner-dots">
-                <div class="bounce1"></div>
-                <div class="bounce2"></div>
-                <div class="bounce3"></div>
+            <div class="card-body" style="display: none;">
+                @if (TempData["SuccessMessageSettings"] != null)
+                {
+                    <div class="alert alert-success">@TempData["SuccessMessageSettings"]</div>
+                }
+                @if (TempData["ErrorMessageSettings"] != null)
+                {
+                    <div class="alert alert-danger">@TempData["ErrorMessageSettings"]</div>
+                }
+
+                <form asp-controller="Settings" asp-action="SaveSettings" method="post">
+                    @Html.AntiForgeryToken()
+                    <h5>Periodo di Conservazione Dati</h5>
+                    <p class="text-muted">I log più vecchi di questo periodo verranno eliminati.</p>
+                    <div class="row align-items-end">
+                        <div class="col-md-4 mb-2"><label for="RetentionDays" class="form-label">Giorni</label><input id="RetentionDays" name="RetentionDays" type="number" class="form-control" value="@settingsModel.RetentionDays"></div>
+                        <div class="col-md-4 mb-2"><label for="RetentionHours" class="form-label">Ore</label><input id="RetentionHours" name="RetentionHours" type="number" class="form-control" value="@settingsModel.RetentionHours"></div>
+                        <div class="col-md-4 mb-2"><label for="RetentionMinutes" class="form-label">Minuti</label><input id="RetentionMinutes" name="RetentionMinutes" type="number" class="form-control" value="@settingsModel.RetentionMinutes"></div>
+                    </div>
+                    <hr class="my-4" style="border-top: 1px solid #404040;">
+                    <h5>Intervallo di Esecuzione</h5>
+                    <p class="text-muted">Ogni quanto tempo il servizio di pulizia deve essere eseguito.</p>
+                    <div class="row align-items-end">
+                        <div class="col-md-6 mb-2"><label for="CleanupIntervalHours" class="form-label">Ore</label><input id="CleanupIntervalHours" name="CleanupIntervalHours" type="number" class="form-control" value="@settingsModel.CleanupIntervalHours"></div>
+                        <div class="col-md-6 mb-2"><label for="CleanupIntervalMinutes" class="form-label">Minuti</label><input id="CleanupIntervalMinutes" name="CleanupIntervalMinutes" type="number" class="form-control" value="@settingsModel.CleanupIntervalMinutes"></div>
+                    </div>
+                    <div class="d-grid gap-2 mt-4"><button type="submit" class="btn btn-save-custom"><i class="fas fa-save me-2"></i> Salva Impostazioni</button></div>
+                </form>
             </div>
+            <div class="card-footer" style="display: none;"><strong>Nota: Il riavvio dell'applicazione è necessario per applicare le nuove impostazioni.</strong></div>
+        </div>
+        <!-- FINE SEZIONE RIPRISTINATA -->
+
+        <div class="text-center mt-4">
+            <a asp-action="Connection" asp-controller="OpcUa" class="btn btn-secondary">
+                <i class="fas fa-tachometer-alt me-2"></i>Vai alla Dashboard delle Connessioni
+            </a>
         </div>
     </div>
 </div>
 
-<!-- Sezione Impostazioni -->
-<div class="card shadow-sm mt-4">
-    <div class="card-header collapsible-header" id="toggle-settings-header">
-        <span>Impostazioni di Pulizia del Database</span>
-        <i class="fas fa-chevron-up" id="settings-toggle-icon"></i>
-    </div>
-    <div class="card-body" style="display: none;">
-        @if (TempData["Success"] != null)
-        {
-            <div class="alert alert-success">@TempData["Success"]</div>
-        }
-        @if (TempData["Error"] != null)
-        {
-            <div class="alert alert-danger">@TempData["Error"]</div>
-        }
-
-        <form asp-controller="Settings" asp-action="SaveSettings" method="post">
-            @Html.AntiForgeryToken()
-            <h5>Periodo di Conservazione Dati</h5>
-            <p class="text-muted">I log più vecchi di questo periodo verranno eliminati.</p>
-            <div class="row align-items-end">
-                <div class="col-md-4"><label for="RetentionDays" class="form-label">Giorni</label><input id="RetentionDays" name="RetentionDays" type="number" class="form-control" value="@settingsModel.RetentionDays"></div>
-                <div class="col-md-4"><label for="RetentionHours" class="form-label">Ore</label><input id="RetentionHours" name="RetentionHours" type="number" class="form-control" value="@settingsModel.RetentionHours"></div>
-                <div class="col-md-4"><label for="RetentionMinutes" class="form-label">Minuti</label><input id="RetentionMinutes" name="RetentionMinutes" type="number" class="form-control" value="@settingsModel.RetentionMinutes"></div>
-            </div>
-            <hr class="my-4" style="border-top: 1px solid #404040;">
-            <h5>Intervallo di Esecuzione</h5>
-            <p class="text-muted">Ogni quanto tempo il servizio di pulizia deve essere eseguito.</p>
-            <div class="row align-items-end">
-                <div class="col-md-6"><label for="CleanupIntervalHours" class="form-label">Ore</label><input id="CleanupIntervalHours" name="CleanupIntervalHours" type="number" class="form-control" value="@settingsModel.CleanupIntervalHours"></div>
-                <div class="col-md-6"><label for="CleanupIntervalMinutes" class="form-label">Minuti</label><input id="CleanupIntervalMinutes" name="CleanupIntervalMinutes" type="number" class="form-control" value="@settingsModel.CleanupIntervalMinutes"></div>
-            </div>
-            <div class="d-grid gap-2 mt-4"><button type="submit" class="btn btn-save-custom"><i class="fas fa-save me-2"></i> Salva Impostazioni</button></div>
-        </form>
-    </div>
-    <div class="card-footer" style="display: none;"><strong>Nota:</strong> Il riavvio dell'applicazione è necessario per applicare le nuove impostazioni.</div>
-</div>
-
-<!-- Resto della pagina -->
-<div id="endpoints-container" class="card shadow-sm mt-4">
-    <div class="card-header collapsible-header" id="toggle-endpoints-header"><span>Server Trovati (Clicca per connettere)</span><i class="fas fa-chevron-up" id="endpoints-toggle-icon"></i></div>
-    <div class="card-body"><div id="endpoints-list"></div></div>
-</div>
-<div class="card shadow-sm mt-4">
-    <div class="card-header">Struttura del Server</div>
-    <div class="card-body"><div id="opc-tree"></div></div>
-</div>
-<div id="error-message" class="alert alert-danger mt-3" style="display: none;"></div>
-
 @section Scripts {
     <script>
         $(document).ready(function() {
-            let valueUpdateTimer = null;
-            const visibleVariableNodes = new Set();
-            // --- MODIFIED: Separate sets for logging and alarming states ---
-            let dbLoggingNodes = new Set();
-            let telegramAlarmingNodes = new Set();
-            const UPDATE_INTERVAL = 5000;
-
-            function loadConnectionInfo() {
-                const lastIp = localStorage.getItem('opcLastIp');
-                const lastPort = localStorage.getItem('opcLastPort');
-                if (lastIp) {
-                    $('#opcServerIp').val(lastIp);
-                }
-                if (lastPort) {
-                    $('#opcServerPort').val(lastPort);
-                }
-            }
-
-            function saveConnectionInfo() {
-                localStorage.setItem('opcLastIp', $('#opcServerIp').val());
-                localStorage.setItem('opcLastPort', $('#opcServerPort').val());
-            }
-
-            loadConnectionInfo();
-
-            $('#opcServerIp').on('input', saveConnectionInfo);
-            $('#opcServerPort').on('input', saveConnectionInfo);
-
-            // --- MODIFIED: Restore state for both logging and alarming ---
-            function restoreStateOnLoad() {
-                $.get('@Url.Action("GetStatus", "OpcUa")', function(status) {
-                    if (status.isConnected && status.endpointUrl) {
-                        // Get the monitoring status for both functions
-                        $.get('@Url.Action("GetMonitoringStatus", "OpcUa")', function(monitoringStatus) {
-                            dbLoggingNodes = new Set(monitoringStatus.dbLoggingNodes || []);
-                            telegramAlarmingNodes = new Set(monitoringStatus.telegramAlarmingNodes || []);
-
-                            $('#endpoints-list').html(`<div class="endpoint-item active" data-endpoint-url="${status.endpointUrl}"><strong>Connesso a:</strong><div class="endpoint-url">${status.endpointUrl}</div></div>`);
-                            $('#endpoints-container').show();
-                            browseNode(null, $('#opc-tree'));
-                            startValueUpdater();
-                        });
-                    }
-                });
-            }
-
-            restoreStateOnLoad();
-
-            function startValueUpdater() {
-                stopValueUpdater();
-                valueUpdateTimer = setInterval(updateVisibleNodeValues, UPDATE_INTERVAL);
-            }
-
-            function stopValueUpdater() {
-                if (valueUpdateTimer) clearInterval(valueUpdateTimer);
-                visibleVariableNodes.clear();
-            }
-
-            function updateVisibleNodeValues() {
-                if (visibleVariableNodes.size === 0) return;
-                $.ajax({
-                    url: '@Url.Action("ReadValues", "OpcUa")',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({ nodeIds: Array.from(visibleVariableNodes) }),
-                    success: function(data) {
-                        $.each(data, function(i, item) {
-                            const $li = $(`li[data-node-id="${item.nodeId.replace(/"/g, '\\"')}"]`);
-                            const $details = $li.find('.node-details');
-                            if ($details.length > 0) {
-                                var statusClass = item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
-                                var newHtml = `Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`;
-                                if ($details.html() !== newHtml) {
-                                    $details.html(newHtml).addClass('value-flash').one('animationend', () => $details.removeClass('value-flash'));
-                                }
-                            }
-                        });
-                    }
-                });
-            }
-
-            function discoverEndpoints(ip, port) {
-                stopValueUpdater();
-                $('#spinner').css('display', 'inline-block');
-                $('#error-message').hide();
-                $('#endpoints-list').empty();
-                $('#opc-tree').empty();
-                $('#endpoints-container .card-body').slideDown();
-                $('#endpoints-toggle-icon').removeClass('collapsed');
-                $('#endpoints-container').hide();
-
-                $.post('@Url.Action("Discover", "OpcUa")', { ipAddress: ip, port: port }, function(data) {
-                    if (data.length === 0) {
-                        $('#endpoints-list').html('<div class="alert alert-warning">Nessun server trovato.</div>');
-                    } else {
-                        $.each(data, function(i, item) {
-                            var $item = $('<div class="endpoint-item" data-endpoint-url="' + item.endpointUrl + '"></div>');
-                            $item.append(`<strong>${item.applicationName}</strong> (${item.securityMode})`).append(`<div class="endpoint-url">${item.endpointUrl}</div>`);
-                            $('#endpoints-list').append($item);
-                        });
-                    }
-                    $('#endpoints-container').show();
-                }).fail(function(xhr) {
-                    var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore sconosciuto durante la ricerca.";
-                    $('#error-message').text(msg).show();
-                }).always(function() {
-                    $('#spinner').hide();
-                });
-            }
-
-            function browseNode(nodeId, element) {
-                $('#spinner').css('display', 'inline-block');
-                $('#error-message').hide();
-                var isExpanding = element.is('li');
-
-                $.post('@Url.Action("Browse", "OpcUa")', { nodeId: nodeId }, function(data) {
-                    var $ul = $('<ul></ul>');
-                    if (data.length === 0) {
-                        if (isExpanding) element.find('.node-toggle-icon').html('').removeClass('fa-solid fa-chevron-right');
-                        else $ul.append('<li>Nessun nodo trovato.</li>');
-                    } else {
-                         $.each(data, function(i, item) {
-                            var $li = $('<li></li>').attr('data-node-id', item.nodeId);
-                            var $row = $('<div class="tree-item-row"></div>');
-                            if (item.hasChildren) $row.append('<i class="node-toggle-icon fa-solid fa-chevron-right"></i>');
-                            else $row.append('<span class="node-toggle-icon"></span>');
-                            var iconClass = 'fa-solid fa-question-circle';
-                            if (item.nodeClass === 'Object') iconClass = 'fa-solid fa-folder';
-                            if (item.nodeClass === 'Variable') iconClass = 'fa-solid fa-tag';
-                            if (item.nodeClass === 'Method') iconClass = 'fa-solid fa-cogs';
-                            $row.append(`<span class="node-icon"><i class="${iconClass}"></i></span>`);
-                            $row.append($('<span class="node-name"></span>').text(item.displayName));
-                            if (item.nodeClass === 'Variable') {
-                                visibleVariableNodes.add(item.nodeId);
-                                var statusClass = item.status.toLowerCase().startsWith('good') ? 'status-good' : 'status-bad';
-                                $row.append($('<span class="node-details"></span>').html(`Valore: ${item.value} (<span class="${statusClass}">${item.status}</span>)`));
-
-                                // --- MODIFIED: Add two separate checkboxes ---
-                                const isDbLogging = dbLoggingNodes.has(item.nodeId);
-                                const isTelegramAlarming = telegramAlarmingNodes.has(item.nodeId);
-
-                                const $actionsDiv = $('<div class="node-actions"></div>');
-
-                                // DB Logging Checkbox
-                                $actionsDiv.append(`
-                                    <input type="checkbox" class="action-checkbox db-logging-checkbox" data-display-name="${item.displayName}" ${isDbLogging ? 'checked' : ''} title="Registra su Database" />
-                                    <i class="fas fa-database action-icon db-log-icon" title="Registrazione su DB"></i>
-                                `);
-
-                                // Telegram Alarming Checkbox
-                                $actionsDiv.append(`
-                                    <input type="checkbox" class="action-checkbox telegram-alarming-checkbox" data-display-name="${item.displayName}" ${isTelegramAlarming ? 'checked' : ''} title="Invia allarme Telegram" />
-                                    <i class="fas fa-bell action-icon telegram-alarm-icon" title="Allarme qualità Telegram"></i>
-                                `);
-
-                                $row.append($actionsDiv);
-                                // --- END MODIFICATION ---
-                            }
-                            $li.append($row);
-                            $ul.append($li);
-                        });
-                    }
-                    if(isExpanding) element.append($ul);
-                    else element.empty().append($ul);
-                }).fail(function(xhr) {
-                    var msg = xhr.responseJSON ? xhr.responseJSON.message : "Errore durante il browsing.";
-                    if(isExpanding) element.find('.node-toggle-icon').toggleClass('expanded', false);
-                    else element.empty();
-                    $('#error-message').text(msg).show();
-                }).always(function() {
-                    $('#spinner').hide();
-                });
-            }
-
-            $('#discoverBtn').click(function() {
-                const ip = $('#opcServerIp').val();
-                const port = $('#opcServerPort').val();
-                discoverEndpoints(ip, port);
-            });
-
-            $('#endpoints-list').on('click', '.endpoint-item', function() {
-                stopValueUpdater();
-                $('.endpoint-item').removeClass('active');
-                $(this).addClass('active');
-                var endpointUrl = $(this).data('endpoint-url');
-                $('#spinner').css('display', 'inline-block');
-
-                $.post('@Url.Action("Connect", "OpcUa")', { endpointUrl: endpointUrl })
-                    .done(function() {
-                        browseNode(null, $('#opc-tree'));
-                        startValueUpdater();
-                    })
-                    .fail(function(xhr) {
-                         var msg = xhr.responseJSON ? xhr.responseJSON.message : "Connessione fallita.";
-                         $('#error-message').text(msg).show();
-                         $('#spinner').hide();
-                    });
-            });
-
-            $('#opc-tree').on('click', '.node-toggle-icon', function() {
-                var $icon = $(this);
-                var $li = $icon.closest('li');
-                var nodeId = $li.data('node-id');
-                var $childrenUl = $li.find('> ul');
-
-                $icon.toggleClass('expanded');
-                if ($childrenUl.length > 0) {
-                    $childrenUl.find('li').each(function() { visibleVariableNodes.delete($(this).data('node-id')); });
-                    $childrenUl.remove();
-                } else {
-                    browseNode(nodeId, $li);
-                }
-            });
-
-            $('#toggle-endpoints-header').on('click', function() {
-                $(this).next('.card-body').slideToggle();
-                $('#endpoints-toggle-icon').toggleClass('collapsed');
-            });
-
+            // Logica per rendere la card delle impostazioni collassabile
             $('#toggle-settings-header').on('click', function() {
                 $(this).nextAll('.card-body, .card-footer').slideToggle();
                 $('#settings-toggle-icon').toggleClass('collapsed');
             });
-
-            // --- ADDED: Generic function to handle checkbox changes ---
-            function handleMonitoringChange(checkbox) {
-                const $checkbox = $(checkbox);
-                const nodeId = $checkbox.closest('li').data('node-id');
-                const displayName = $checkbox.data('display-name');
-                const isChecked = $checkbox.is(':checked');
-                let actionType = '';
-
-                if ($checkbox.hasClass('db-logging-checkbox')) {
-                    actionType = 'DbLogging';
-                } else if ($checkbox.hasClass('telegram-alarming-checkbox')) {
-                    actionType = 'TelegramAlarming';
-                }
-
-                if (!actionType) return;
-
-                const url = isChecked ? `@Url.Action("Start", "OpcUa")/${actionType}` : `@Url.Action("Stop", "OpcUa")/${actionType}`;
-
-                $.post(url, { nodeId: nodeId, displayName: displayName })
-                    .done(function() {
-                        if (actionType === 'DbLogging') {
-                            isChecked ? dbLoggingNodes.add(nodeId) : dbLoggingNodes.delete(nodeId);
-                        } else if (actionType === 'TelegramAlarming') {
-                            isChecked ? telegramAlarmingNodes.add(nodeId) : telegramAlarmingNodes.delete(nodeId);
-                        }
-                    })
-                    .fail(function() {
-                        alert(`Errore durante l'aggiornamento del monitoraggio ${actionType}.`);
-                        $checkbox.prop('checked', !isChecked);
-                    });
-            }
-
-            $('#opc-tree').on('change', '.db-logging-checkbox', function() {
-                handleMonitoringChange(this);
-            });
-
-            $('#opc-tree').on('change', '.telegram-alarming-checkbox', function() {
-                handleMonitoringChange(this);
-            });
-            // --- END MODIFICATION ---
-
         });
     </script>
     @{

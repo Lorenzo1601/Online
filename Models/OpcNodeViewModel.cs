@@ -1,38 +1,28 @@
 ﻿namespace Online.Models
 {
     /// <summary>
-    /// View model to represent an OPC UA node for the frontend.
+    /// Rappresenta un singolo nodo OPC UA da visualizzare nell'interfaccia utente.
+    /// Contiene tutte le proprietà necessarie per la visualizzazione e l'interazione.
     /// </summary>
     public class OpcNodeViewModel
     {
-        /// <summary>
-        /// The NodeId as a string.
-        /// </summary>
         public string NodeId { get; set; } = string.Empty;
-
-        /// <summary>
-        /// The display name of the node.
-        /// </summary>
         public string DisplayName { get; set; } = string.Empty;
-
-        /// <summary>
-        /// The value of the node, if it's a variable.
-        /// </summary>
         public string? Value { get; set; }
-
-        /// <summary>
-        /// The status code of the value.
-        /// </summary>
         public string? Status { get; set; }
-
-        /// <summary>
-        /// Indicates if the node has children that can be browsed.
-        /// </summary>
         public bool HasChildren { get; set; }
+        public string? NodeClass { get; set; }
 
         /// <summary>
-        /// The class of the node (e.g., Object, Variable).
+        /// Indica se il logging su database è attivo per questo nodo.
+        /// Questa proprietà viene letta dal frontend per impostare lo stato della spunta.
         /// </summary>
-        public string? NodeClass { get; set; } // <-- PROPRIETÀ MANCANTE AGGIUNTA
+        public bool IsDbLogging { get; set; }
+
+        /// <summary>
+        /// Indica se l'allarme Telegram è attivo per questo nodo.
+        /// Questa proprietà viene letta dal frontend per impostare lo stato della spunta.
+        /// </summary>
+        public bool IsTelegramAlarming { get; set; }
     }
 }

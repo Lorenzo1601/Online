@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Online;
 using Online.Data;
+using Online;
 using Online.Models;
+using Online.Services; // Assicurati che questo namespace sia corretto
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,12 +28,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddHttpClient();
 
-// Registra OpcUaService come Singleton. Viene creato una sola volta e condiviso.
-builder.Services.AddSingleton<OpcUaService>();
+// Registra i servizi principali dell'applicazione come Singleton.
+// Vengono creati una sola volta e condivisi per tutta la durata dell'applicazione.
+builder.Services.AddSingleton<OpcUaMultiServerService>();
+builder.Services.AddSingleton<MonitoringConfigService>();
 
 // Registra il servizio di pulizia dati in background.
 builder.Services.AddHostedService<DataCleanUpService>();
-
 
 var app = builder.Build();
 

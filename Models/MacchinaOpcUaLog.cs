@@ -1,32 +1,35 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Online.Models
+namespace online.Models
 {
     [Table("macchineopcua")]
     public class MacchinaOpcUaLog
     {
-        // NUOVO: Campo Id per la chiave composita
-        [Column("Id")]
-        public long Id { get; set; }
+        // La chiave primaria è composta e viene definita in ApplicationDbContext.cs
+
+        [Column("NomeMacchina")]
+        public string NomeMacchina { get; set; }
 
         [Column("Nome")]
-        [StringLength(512)]
         public string Nome { get; set; }
 
         [Column("Nodo")]
-        [StringLength(1024)]
         public string? Nodo { get; set; }
 
         [Column("Valore")]
-        [StringLength(512)]
         public string? Valore { get; set; }
 
         [Column("Qualita")]
-        [StringLength(45)]
         public string? Qualita { get; set; }
 
         [Column("Timestamp")]
         public DateTime Timestamp { get; set; }
+
+        // --- RIMOSSO: Le proprietà IP_Address e Porta non sono più presenti ---
+
+        // Proprietà di navigazione per la relazione con Connessione
+        public Connessione Connessione { get; set; }
     }
 }

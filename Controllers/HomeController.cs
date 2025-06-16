@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Online.Data;
 using Online.Models;
 using System;
 using System.Diagnostics;
@@ -16,6 +15,7 @@ using System.Text;
 using System.IO;
 using Microsoft.AspNetCore.Http;
 using System.Threading;
+using Online.Data;
 
 namespace Online.Controllers
 {
