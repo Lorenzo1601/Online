@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Online.Models;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -26,8 +27,6 @@ namespace online.Models
 
         [Column("Timestamp")]
         public DateTime Timestamp { get; set; }
-
-        // --- RIMOSSO: Le proprietà IP_Address e Porta non sono più presenti ---
 
         // Proprietà di navigazione per la relazione con Connessione
         public Connessione Connessione { get; set; }

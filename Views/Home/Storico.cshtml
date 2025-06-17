@@ -4,10 +4,13 @@
     var macchine = ViewData["Macchine"] as IEnumerable<string> ?? new List<string>();
     var selectedMacchina = ViewData["SelectedMacchina"] as string;
     var currentFilter = ViewData["CurrentFilter"] as string;
+    var dataInizioFilter = ViewData["DataInizio"] as string;
+    var dataFineFilter = ViewData["DataFine"] as string;
 }
 
 <head>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <style>
@@ -48,7 +51,7 @@
     .form-label {
         color: #b0b0b0;
     }
-    /* Stili per i pulsanti outline sono gestiti direttamente dalle classi Bootstrap */
+
     .table {
         color: #e0e0e0;
     }
@@ -62,6 +65,60 @@
         color: #ffffff;
         background-color: #333;
     }
+
+    .modal-content {
+        background-color: #2d2d2d;
+        color: #e0e0e0;
+        border: 1px solid #404040;
+    }
+
+    .modal-header {
+        border-bottom: 1px solid #404040;
+    }
+
+    .modal-footer {
+        border-top: 1px solid #404040;
+    }
+
+    .btn-close {
+        filter: invert(1) grayscale(100%) brightness(200%);
+    }
+
+    #savedChartsList {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .chart-file-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        border: 1px solid #444;
+        border-radius: 5px;
+        margin-bottom: 5px;
+        background-color: #333;
+    }
+
+    .chart-file-name {
+        cursor: pointer;
+        font-weight: 500;
+        color: #64b5f6;
+        flex-grow: 1;
+        margin-right: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+        .chart-file-name:hover {
+            text-decoration: underline;
+        }
+
+    .chart-file-actions {
+        flex-shrink: 0;
+    }
+
 </style>
 
 <h1 class="display-4 text-center mb-4">@ViewData["Title"]</h1>
@@ -74,10 +131,10 @@
             </div>
             <div class="card-body">
                 <form asp-controller="Home" asp-action="Storico" method="get">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-5">
+                    <div class="row g-3">
+                        <div class="col-md-6 col-lg-3">
                             <label for="nomeMacchina" class="form-label"><strong>Seleziona Macchina</strong></label>
-                            <select id="nomeMacchina" name="nomeMacchina" class="form-select" onchange="this.form.submit()">
+                            <select id="nomeMacchina" name="nomeMacchina" class="form-select">
                                 <option value="">Tutte le macchine</option>
                                 @foreach (var macchina in macchine)
                                 {
@@ -85,12 +142,22 @@
                                 }
                             </select>
                         </div>
-                        <div class="col-md-5">
+                        <div class="col-md-6 col-lg-3">
                             <label for="searchString" class="form-label"><strong>Cerca per Nome Tag</strong></label>
                             <input type="text" id="searchString" name="searchString" class="form-control" placeholder="Nome, es. 'Temperatura'" value="@currentFilter">
                         </div>
-                        <div class="col-md-2 d-grid">
-                            <button type="submit" class="btn btn-outline-primary"><i class="fas fa-search me-1"></i> Cerca</button>
+                        <div class="col-md-6 col-lg-3">
+                            <label for="dataInizio" class="form-label"><strong>Da (data e ora)</strong></label>
+                            <input type="datetime-local" id="dataInizio" name="dataInizio" class="form-control" value="@dataInizioFilter">
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <label for="dataFine" class="form-label"><strong>A (data e ora)</strong></label>
+                            <input type="datetime-local" id="dataFine" name="dataFine" class="form-control" value="@dataFineFilter">
+                        </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-12 d-grid">
+                            <button type="submit" class="btn btn-outline-primary"><i class="fas fa-search me-1"></i> Applica Filtri</button>
                         </div>
                     </div>
                 </form>
@@ -99,31 +166,26 @@
     </div>
 </div>
 
-<!-- SEZIONE ESPORTA -->
+<!-- SEZIONE ESPORTA E GRAFICO -->
 <div class="row justify-content-center mt-4">
     <div class="col-md-12">
         <div class="card shadow-sm">
             <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-file-export me-2"></i>Esporta Dati Filtrati</h5>
+                <h5 class="mb-0"><i class="fas fa-file-export me-2"></i>Esporta e Visualizza</h5>
             </div>
             <div class="card-body d-flex justify-content-center flex-wrap gap-3">
-                <a asp-action="ExportToExcel"
-                   asp-controller="Home"
-                   asp-route-nomeMacchina="@selectedMacchina"
-                   asp-route-searchString="@currentFilter"
-                   class="btn btn-outline-success"><i class="fas fa-file-excel me-2"></i>Esporta Excel</a>
-
-                <a asp-action="ExportToPdf"
-                   asp-controller="Home"
-                   asp-route-nomeMacchina="@selectedMacchina"
-                   asp-route-searchString="@currentFilter"
-                   class="btn btn-outline-danger"><i class="fas fa-file-pdf me-2"></i>Esporta PDF</a>
+                <a asp-action="ExportToExcel" asp-controller="Home" asp-route-nomeMacchina="@selectedMacchina" asp-route-searchString="@currentFilter" asp-route-dataInizio="@dataInizioFilter" asp-route-dataFine="@dataFineFilter" class="btn btn-outline-success"><i class="fas fa-file-excel me-2"></i>Esporta Excel</a>
+                <a asp-action="ExportToPdf" asp-controller="Home" asp-route-nomeMacchina="@selectedMacchina" asp-route-searchString="@currentFilter" asp-route-dataInizio="@dataInizioFilter" asp-route-dataFine="@dataFineFilter" class="btn btn-outline-danger"><i class="fas fa-file-pdf me-2"></i>Esporta PDF</a>
+                <button type="button" id="generateChartBtn" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#chartModal">
+                    <i class="fas fa-chart-line me-2"></i>Genera Grafico
+                </button>
+                <button type="button" id="viewChartsBtn" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#viewChartModal">
+                    <i class="fas fa-folder-open me-2"></i>Visualizza Grafici
+                </button>
             </div>
         </div>
     </div>
 </div>
-<!-- FINE SEZIONE -->
-
 
 <div class="row justify-content-center mt-4">
     <div class="col-md-12">
@@ -132,7 +194,7 @@
                 <h5 class="mb-0"><i class="fas fa-history me-2"></i>Risultati</h5>
             </div>
             <div class="table-responsive">
-                <table class="table table-dark table-striped table-hover mb-0">
+                <table id="dataTable" class="table table-dark table-striped table-hover mb-0">
                     <thead>
                         <tr>
                             <th>Nome Tag</th>
@@ -152,7 +214,7 @@
                                     <td>@Html.DisplayFor(modelItem => item.Nodo)</td>
                                     <td>@Html.DisplayFor(modelItem => item.Valore)</td>
                                     <td>@Html.DisplayFor(modelItem => item.Qualita)</td>
-                                    <td>@item.Timestamp.ToString("g")</td>
+                                    <td>@item.Timestamp.ToString("yyyy-MM-dd HH:mm")</td>
                                 </tr>
                             }
                         }
@@ -168,3 +230,296 @@
         </div>
     </div>
 </div>
+
+<!-- MODALE PER GENERARE IL GRAFICO -->
+<div class="modal fade" id="chartModal" tabindex="-1" aria-labelledby="chartModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="chartModalLabel">Genera e Salva Grafico</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="chartNameInput" class="form-label"><strong>Nome del Grafico</strong></label>
+                    <input type="text" class="form-control" id="chartNameInput" placeholder="Es. Grafico Temperature Aprile">
+                </div>
+                <div>
+                    <canvas id="myChart"></canvas>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="fas fa-times me-2"></i>Annulla</button>
+                <button type="button" id="saveChartDataBtn" class="btn btn-outline-success"><i class="fas fa-save me-2"></i>Salva</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NUOVO MODALE PER VISUALIZZARE I GRAFICI SALVATI -->
+<div class="modal fade" id="viewChartModal" tabindex="-1" aria-labelledby="viewChartModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewChartModalLabel">Visualizza Grafici Salvati</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>Grafici Disponibili</h6>
+                        <div class="mb-3">
+                            <input type="text" id="chartSearchInput" class="form-control form-control-sm" placeholder="Cerca grafico...">
+                        </div>
+                        <div id="savedChartsList">
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <canvas id="savedChartCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // --- LOGICA GENERAZIONE GRAFICO ---
+            const generateChartBtn = document.getElementById('generateChartBtn');
+            if (generateChartBtn) {
+                const chartModalEl = document.getElementById('chartModal');
+                const chartModal = new bootstrap.Modal(chartModalEl);
+                const saveChartDataBtn = document.getElementById('saveChartDataBtn');
+                const chartNameInput = document.getElementById('chartNameInput');
+                const ctx = document.getElementById('myChart').getContext('2d');
+                let myChart;
+                let chartDataForSave = [];
+
+                const createChart = () => {
+                    const table = document.getElementById('dataTable');
+                    const rows = table.querySelectorAll('tbody tr');
+                    const labels = [];
+                    const dataValues = [];
+                    chartDataForSave = [];
+
+                    rows.forEach(row => {
+                        const cells = row.getElementsByTagName('td');
+                        if (cells.length === 5 && cells[0].textContent) { // Controlla che la riga non sia vuota
+                            const timestamp = cells[4].innerText;
+                            const valueText = cells[2].innerText.replace(',', '.');
+                            const value = parseFloat(valueText);
+
+                            if (!isNaN(value)) {
+                                labels.push(timestamp);
+                                dataValues.push(value);
+                                chartDataForSave.push({ timestamp: timestamp, value: value });
+                            }
+                        }
+                    });
+
+                    if (myChart) myChart.destroy();
+
+                    myChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Valore',
+                                data: dataValues,
+                                borderColor: 'rgba(100, 181, 246, 1)',
+                                backgroundColor: 'rgba(100, 181, 246, 0.2)',
+                                borderWidth: 2,
+                                pointBackgroundColor: 'rgba(255, 255, 255, 1)',
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            scales: { y: { beginAtZero: false, ticks: { color: '#e0e0e0' } }, x: { ticks: { color: '#e0e0e0' } } },
+                            plugins: { legend: { labels: { color: '#e0e0e0' } } }
+                        }
+                    });
+                };
+
+                generateChartBtn.addEventListener('click', createChart);
+
+                if(saveChartDataBtn) {
+                    saveChartDataBtn.addEventListener('click', function () {
+                        const chartName = chartNameInput.value.trim();
+                        if (!chartName) {
+                            alert('Per favore, inserisci un nome per il grafico.');
+                            return;
+                        }
+                        const payload = { ChartName: chartName, Data: chartDataForSave };
+                        fetch('/Home/SaveChartData', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('Grafico salvato con successo!');
+                                chartModal.hide();
+                            } else {
+                                alert('Errore durante il salvataggio: ' + data.message);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Errore nella chiamata fetch:', error);
+                            alert('Si è verificato un errore di rete.');
+                        });
+                    });
+                }
+            }
+
+            // --- LOGICA VISUALIZZAZIONE GRAFICI SALVATI ---
+            const viewChartsBtn = document.getElementById('viewChartsBtn');
+            if (viewChartsBtn) {
+                const savedChartsList = document.getElementById('savedChartsList');
+                const savedChartCtx = document.getElementById('savedChartCanvas').getContext('2d');
+                const chartSearchInput = document.getElementById('chartSearchInput');
+                let savedChart;
+
+                const loadSavedChartsList = () => {
+                    fetch('/Home/GetSavedCharts')
+                        .then(response => response.json())
+                        .then(data => {
+                            savedChartsList.innerHTML = '';
+                            if (data.success && data.files.length > 0) {
+                                data.files.forEach(file => {
+                                    const fileItem = document.createElement('div');
+                                    fileItem.className = 'chart-file-item';
+                                    const fileNameSpan = document.createElement('span');
+                                    fileNameSpan.className = 'chart-file-name';
+                                    fileNameSpan.textContent = file.replace('.txt', '');
+                                    fileNameSpan.dataset.filename = file;
+
+                                    const btnContainer = document.createElement('div');
+                                    btnContainer.className = 'chart-file-actions';
+
+                                    const downloadLink = document.createElement('a');
+                                    downloadLink.href = `/Grafici/${file}`;
+                                    downloadLink.className = 'btn btn-sm btn-outline-light';
+                                    downloadLink.download = file;
+                                    downloadLink.innerHTML = '<i class="fas fa-download"></i>';
+                                    downloadLink.title = 'Scarica';
+
+                                    const deleteBtn = document.createElement('button');
+                                    deleteBtn.type = 'button';
+                                    deleteBtn.className = 'btn btn-sm btn-outline-danger delete-chart-btn ms-2';
+                                    deleteBtn.dataset.filename = file;
+                                    deleteBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                                    deleteBtn.title = 'Elimina';
+
+                                    btnContainer.appendChild(downloadLink);
+                                    btnContainer.appendChild(deleteBtn);
+                                    fileItem.appendChild(fileNameSpan);
+                                    fileItem.appendChild(btnContainer);
+                                    savedChartsList.appendChild(fileItem);
+                                });
+                            } else {
+                                savedChartsList.innerHTML = '<p class="text-light fst-italic">Nessun grafico salvato trovato.</p>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Errore nel caricare la lista dei grafici:", error);
+                            savedChartsList.innerHTML = '<p class="text-danger">Impossibile caricare la lista.</p>';
+                        });
+                };
+
+                const renderSavedChart = (labels, dataValues) => {
+                    if (savedChart) savedChart.destroy();
+                    savedChart = new Chart(savedChartCtx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Valore Registrato',
+                                data: dataValues,
+                                borderColor: 'rgba(26, 188, 156, 1)',
+                                backgroundColor: 'rgba(26, 188, 156, 0.2)',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            scales: { y: { beginAtZero: false, ticks: { color: '#e0e0e0' } }, x: { ticks: { color: '#e0e0e0' } } },
+                            plugins: { legend: { labels: { color: '#e0e0e0' } } }
+                        }
+                    });
+                };
+
+                viewChartsBtn.addEventListener('click', loadSavedChartsList);
+
+                if (savedChartsList) {
+                    savedChartsList.addEventListener('click', (e) => {
+                        const viewTarget = e.target.closest('.chart-file-name');
+                        const deleteTarget = e.target.closest('.delete-chart-btn');
+                        if (viewTarget) {
+                            const fileName = viewTarget.dataset.filename;
+                            fetch(`/Home/GetChartDataFile?fileName=${encodeURIComponent(fileName)}`)
+                                .then(response => response.json())
+                                .then(result => {
+                                    if (result.success) {
+                                        const labels = result.data.map(d => d.timestamp);
+                                        const values = result.data.map(d => d.value);
+                                        renderSavedChart(labels, values);
+                                    } else {
+                                        alert('Impossibile caricare i dati del grafico.');
+                                    }
+                                })
+                                .catch(error => console.error("Errore nel caricare i dati del grafico:", error));
+                        } else if (deleteTarget) {
+                            const fileName = deleteTarget.dataset.filename;
+                            if (confirm(`Sei sicuro di voler eliminare il grafico "${fileName.replace('.txt', '')}"? L'azione è irreversibile.`)) {
+                                fetch('/Home/DeleteChartFile', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ fileName: fileName })
+                                })
+                                .then(response => response.json())
+                                .then(result => {
+                                    if (result.success) {
+                                        alert('File eliminato con successo.');
+                                        deleteTarget.closest('.chart-file-item').remove();
+                                    } else {
+                                        alert('Errore durante l\'eliminazione: ' + result.message);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Errore:', error);
+                                    alert('Si è verificato un errore di rete durante l\'eliminazione.');
+                                });
+                            }
+                        }
+                    });
+                }
+
+                if (chartSearchInput) {
+                     chartSearchInput.addEventListener('keyup', () => {
+                        const filter = chartSearchInput.value.toLowerCase();
+                        const items = savedChartsList.querySelectorAll('.chart-file-item');
+                        items.forEach(item => {
+                            const text = item.querySelector('.chart-file-name').textContent.toLowerCase();
+                            if (text.includes(filter)) {
+                                item.style.display = 'flex';
+                            } else {
+                                item.style.display = 'none';
+                            }
+                        });
+                    });
+                }
+            }
+        });
+    </script>
+}

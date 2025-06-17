@@ -16,6 +16,9 @@ using System.IO;
 using Microsoft.AspNetCore.Http;
 using System.Threading;
 using Online.Data;
+using Microsoft.AspNetCore.Hosting;
+// Aggiunto per la gestione della cultura (separatori decimali)
+using System.Globalization;
 
 namespace Online.Controllers
 {
@@ -27,11 +30,30 @@ namespace Online.Controllers
         public DateTime Timestamp { get; set; }
     }
 
+    public class ChartDataPoint
+    {
+        public string Timestamp { get; set; }
+        public double Value { get; set; }
+    }
+
+    public class ChartDataViewModel
+    {
+        public string ChartName { get; set; }
+        public List<ChartDataPoint> Data { get; set; }
+    }
+
+    public class ChartFileDeleteModel
+    {
+        public string FileName { get; set; }
+    }
+
+
     public class HomeController : Controller
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<HomeController> _logger;
         private readonly IConfiguration _configuration;
+        private readonly IWebHostEnvironment _hostingEnvironment;
         private static readonly HttpClient _httpClient = new HttpClient();
 
         private static Dictionary<string, bool> _lastKnownMachineServerStatus = new Dictionary<string, bool>();
@@ -42,11 +64,12 @@ namespace Online.Controllers
         private static Timer _telegramNotificationTimer;
         private const int TELEGRAM_MESSAGE_INTERVAL_MS = 1500;
 
-        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IConfiguration configuration)
+        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IConfiguration configuration, IWebHostEnvironment hostingEnvironment)
         {
             _logger = logger;
             _context = context;
             _configuration = configuration;
+            _hostingEnvironment = hostingEnvironment;
 
             if (_telegramNotificationTimer == null)
             {
@@ -397,94 +420,88 @@ namespace Online.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        /// <summary>
-        /// Action to return the OPC UA Browser page.
-        /// </summary>
         public IActionResult OpcUa()
         {
             _logger.LogInformation("Caricamento pagina OpcUa.");
             return View();
         }
 
-        /// <summary>
-        /// Action per la pagina dello storico dei log OPC UA.
-        /// </summary>
-        public async Task<IActionResult> Storico(string nomeMacchina, string searchString)
+        public async Task<IActionResult> Storico(string nomeMacchina, string searchString, DateTime? dataInizio, DateTime? dataFine)
         {
-            _logger.LogInformation("Caricamento pagina Storico con filtri: Macchina={NomeMacchina}, Ricerca={SearchString}", nomeMacchina, searchString);
+            _logger.LogInformation("Caricamento pagina Storico con filtri: Macchina={NomeMacchina}, Ricerca={SearchString}, Da={DataInizio}, A={DataFine}", nomeMacchina, searchString, dataInizio, dataFine);
 
-            // Passa i filtri attuali alla vista per poterli mostrare nei campi di input
             ViewData["CurrentFilter"] = searchString;
             ViewData["SelectedMacchina"] = nomeMacchina;
+            ViewData["DataInizio"] = dataInizio.HasValue ? dataInizio.Value.ToString("yyyy-MM-ddTHH:mm") : "";
+            ViewData["DataFine"] = dataFine.HasValue ? dataFine.Value.ToString("yyyy-MM-ddTHH:mm") : "";
 
-            // Recupera la lista di tutte le macchine uniche per popolare il dropdown dalla tabella Connessioni
             var macchineList = await _context.Connessioni
-                                             .Select(c => c.NomeMacchina)
-                                             .Distinct()
-                                             .OrderBy(nome => nome)
-                                             .ToListAsync();
+                                            .Select(c => c.NomeMacchina)
+                                            .Distinct()
+                                            .OrderBy(nome => nome)
+                                            .ToListAsync();
             ViewData["Macchine"] = macchineList;
 
-            // Inizia la query per recuperare i log
-            var logsQuery = from l in _context.MacchineOpcUaLog
-                            select l;
+            var logsQuery = _context.MacchineOpcUaLog.AsQueryable();
 
-            // Applica il filtro per macchina, se selezionata
             if (!string.IsNullOrEmpty(nomeMacchina))
             {
                 logsQuery = logsQuery.Where(l => l.NomeMacchina == nomeMacchina);
             }
 
-            // Applica il filtro per nome tag, se inserito
             if (!string.IsNullOrEmpty(searchString))
             {
                 logsQuery = logsQuery.Where(l => l.Nome.Contains(searchString));
             }
 
-            // Ordina i risultati dal più recente al più vecchio e recuperali
+            if (dataInizio.HasValue)
+            {
+                logsQuery = logsQuery.Where(l => l.Timestamp >= dataInizio.Value);
+            }
+
+            if (dataFine.HasValue)
+            {
+                logsQuery = logsQuery.Where(l => l.Timestamp <= dataFine.Value);
+            }
+
             var filteredLogs = await logsQuery.OrderByDescending(l => l.Timestamp).ToListAsync();
 
-            // Invia i log filtrati alla vista
             return View(filteredLogs);
         }
 
-        // --- NUOVE AZIONI PER L'ESPORTAZIONE ---
 
         [HttpGet]
-        public async Task<IActionResult> ExportToExcel(string nomeMacchina, string searchString)
+        public async Task<IActionResult> ExportToExcel(string nomeMacchina, string searchString, DateTime? dataInizio, DateTime? dataFine)
         {
-            // 1. Recupera i dati filtrati (stessa logica dell'azione Storico)
             var logsQuery = _context.MacchineOpcUaLog.AsQueryable();
             if (!string.IsNullOrEmpty(nomeMacchina)) { logsQuery = logsQuery.Where(l => l.NomeMacchina == nomeMacchina); }
             if (!string.IsNullOrEmpty(searchString)) { logsQuery = logsQuery.Where(l => l.Nome.Contains(searchString)); }
+            if (dataInizio.HasValue) { logsQuery = logsQuery.Where(l => l.Timestamp >= dataInizio.Value); }
+            if (dataFine.HasValue) { logsQuery = logsQuery.Where(l => l.Timestamp <= dataFine.Value); }
             var data = await logsQuery.OrderByDescending(l => l.Timestamp).ToListAsync();
 
-            // 2. Genera il contenuto del file CSV
             var builder = new StringBuilder();
-            // Intestazione
             builder.AppendLine("Nome Tag;Nodo;Valore;Qualita;Timestamp");
 
-            // Righe di dati
             foreach (var item in data)
             {
                 builder.AppendLine($"{EscapeCsvField(item.Nome)};{EscapeCsvField(item.Nodo)};{EscapeCsvField(item.Valore)};{EscapeCsvField(item.Qualita)};{item.Timestamp:dd/MM/yyyy HH:mm:ss}");
             }
 
-            // 3. Restituisce il file per il download
             string fileName = $"Storico_{DateTime.Now:yyyyMMddHHmmss}.csv";
             return File(Encoding.UTF8.GetBytes(builder.ToString()), "text/csv", fileName);
         }
 
         [HttpGet]
-        public async Task<IActionResult> ExportToPdf(string nomeMacchina, string searchString)
+        public async Task<IActionResult> ExportToPdf(string nomeMacchina, string searchString, DateTime? dataInizio, DateTime? dataFine)
         {
-            // 1. Recupera i dati filtrati (stessa logica dell'azione Storico)
             var logsQuery = _context.MacchineOpcUaLog.AsQueryable();
             if (!string.IsNullOrEmpty(nomeMacchina)) { logsQuery = logsQuery.Where(l => l.NomeMacchina == nomeMacchina); }
             if (!string.IsNullOrEmpty(searchString)) { logsQuery = logsQuery.Where(l => l.Nome.Contains(searchString)); }
+            if (dataInizio.HasValue) { logsQuery = logsQuery.Where(l => l.Timestamp >= dataInizio.Value); }
+            if (dataFine.HasValue) { logsQuery = logsQuery.Where(l => l.Timestamp <= dataFine.Value); }
             var data = await logsQuery.OrderByDescending(l => l.Timestamp).ToListAsync();
 
-            // 2. Restituisce una vista specifica per il PDF come file PDF usando Rotativa
             string fileName = $"Storico_{DateTime.Now:yyyyMMddHHmmss}.pdf";
             return new Rotativa.AspNetCore.ViewAsPdf("_StoricoPdf", data)
             {
@@ -492,6 +509,149 @@ namespace Online.Controllers
                 PageOrientation = Rotativa.AspNetCore.Options.Orientation.Landscape,
                 PageSize = Rotativa.AspNetCore.Options.Size.A4
             };
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SaveChartData([FromBody] ChartDataViewModel model)
+        {
+            if (string.IsNullOrWhiteSpace(model.ChartName) || model.Data == null || !model.Data.Any())
+            {
+                return Json(new { success = false, message = "Dati non validi." });
+            }
+
+            try
+            {
+                var fileName = string.Concat(model.ChartName.Split(Path.GetInvalidFileNameChars()));
+
+                var directoryPath = Path.Combine(_hostingEnvironment.WebRootPath, "Grafici");
+
+                if (!Directory.Exists(directoryPath))
+                {
+                    Directory.CreateDirectory(directoryPath);
+                }
+
+                var filePath = Path.Combine(directoryPath, $"{fileName}.txt");
+
+                var fileContent = new StringBuilder();
+                fileContent.AppendLine($"Nome Grafico: {model.ChartName}");
+                fileContent.AppendLine("--- Dati ---");
+                foreach (var point in model.Data)
+                {
+                    // Utilizza CultureInfo.InvariantCulture per garantire che il separatore decimale sia sempre un punto '.'
+                    fileContent.AppendLine($"Timestamp: {point.Timestamp}, Valore: {point.Value.ToString(CultureInfo.InvariantCulture)}");
+                }
+
+                await System.IO.File.WriteAllTextAsync(filePath, fileContent.ToString());
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Errore durante il salvataggio del file del grafico.");
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public IActionResult GetSavedCharts()
+        {
+            try
+            {
+                var directoryPath = Path.Combine(_hostingEnvironment.WebRootPath, "Grafici");
+                if (!Directory.Exists(directoryPath))
+                {
+                    return Json(new { success = true, files = new List<string>() });
+                }
+
+                var fileNames = Directory.GetFiles(directoryPath, "*.txt")
+                                         .Select(Path.GetFileName)
+                                         .ToList();
+
+                return Json(new { success = true, files = fileNames });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Errore nel recuperare la lista dei grafici salvati.");
+                return Json(new { success = false, message = "Errore nel leggere la lista dei grafici." });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetChartDataFile(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return BadRequest("Nome file non fornito.");
+            }
+
+            try
+            {
+                var safeFileName = Path.GetFileName(fileName);
+                var filePath = Path.Combine(_hostingEnvironment.WebRootPath, "Grafici", safeFileName);
+
+                if (!System.IO.File.Exists(filePath))
+                {
+                    return NotFound("File non trovato.");
+                }
+
+                var lines = await System.IO.File.ReadAllLinesAsync(filePath);
+                var dataPoints = new List<ChartDataPoint>();
+
+                foreach (var line in lines.Skip(2))
+                {
+                    var parts = line.Split(',');
+                    if (parts.Length == 2)
+                    {
+                        var timestampStr = parts[0].Replace("Timestamp:", "").Trim();
+                        var valueStr = parts[1].Replace("Valore:", "").Trim();
+
+                        // Utilizza CultureInfo.InvariantCulture per interpretare correttamente il punto '.' come separatore decimale
+                        if (double.TryParse(valueStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double value))
+                        {
+                            dataPoints.Add(new ChartDataPoint { Timestamp = timestampStr, Value = value });
+                        }
+                    }
+                }
+                return Json(new { success = true, data = dataPoints });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Errore nel leggere il file del grafico {FileName}", fileName);
+                return Json(new { success = false, message = "Errore nella lettura del file." });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult DeleteChartFile([FromBody] ChartFileDeleteModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.FileName))
+            {
+                return BadRequest(new { success = false, message = "Nome del file non fornito." });
+            }
+
+            try
+            {
+                var fileName = Path.GetFileName(model.FileName);
+                var directoryPath = Path.Combine(_hostingEnvironment.WebRootPath, "Grafici");
+                var filePath = Path.Combine(directoryPath, fileName);
+
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.IO.File.Delete(filePath);
+                    _logger.LogInformation("File grafico eliminato: {FileName}", fileName);
+                    return Json(new { success = true });
+                }
+                else
+                {
+                    _logger.LogWarning("Tentativo di eliminare un file non esistente: {FileName}", fileName);
+                    return NotFound(new { success = false, message = "File non trovato." });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Errore durante l'eliminazione del file grafico: {FileName}", model.FileName);
+                return StatusCode(500, new { success = false, message = "Si è verificato un errore interno durante l'eliminazione." });
+            }
         }
 
 

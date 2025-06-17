@@ -50,7 +50,11 @@ namespace Online
             _logger.LogInformation("Caricamento connessioni server salvate...");
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var savedConnections = dbContext.Connessioni.ToList();
+
+            // --- MODIFICA CHIAVE ---
+            // Aggiunto il filtro per caricare solo le connessioni di tipo "opcua".
+            var savedConnections = dbContext.Connessioni.Where(c => c.Tipo == "opcua").ToList();
+            _logger.LogInformation($"Trovate {savedConnections.Count} connessioni di tipo 'opcua'.");
 
             foreach (var conn in savedConnections)
             {
@@ -95,7 +99,9 @@ namespace Online
                     using var transaction = await dbContext.Database.BeginTransactionAsync();
                     try
                     {
-                        var newConnection = new Connessione { NomeMacchina = model.NomeMacchina, IP_Address = model.IP_Address, Porta = model.Porta };
+                        // --- MODIFICA CHIAVE ---
+                        // Aggiunta la proprietà 'Tipo' per mantenerla durante l'aggiornamento.
+                        var newConnection = new Connessione { NomeMacchina = model.NomeMacchina, IP_Address = model.IP_Address, Porta = model.Porta, Tipo = connectionToUpdate.Tipo };
                         dbContext.Connessioni.Add(newConnection);
                         await dbContext.SaveChangesAsync();
                         await dbContext.Database.ExecuteSqlRawAsync("UPDATE macchineopcua SET NomeMacchina = {0} WHERE NomeMacchina = {1}", model.NomeMacchina, model.OriginalNomeMacchina);
@@ -112,7 +118,9 @@ namespace Online
                 }
                 else
                 {
-                    var entityToUpdate = new Connessione { NomeMacchina = model.NomeMacchina, IP_Address = model.IP_Address, Porta = model.Porta };
+                    // --- MODIFICA CHIAVE ---
+                    // Aggiunta la proprietà 'Tipo' per mantenerla durante l'aggiornamento.
+                    var entityToUpdate = new Connessione { NomeMacchina = model.NomeMacchina, IP_Address = model.IP_Address, Porta = model.Porta, Tipo = connectionToUpdate.Tipo };
                     dbContext.Connessioni.Update(entityToUpdate);
                     await dbContext.SaveChangesAsync();
                 }
@@ -120,7 +128,6 @@ namespace Online
             await AddAndConnectServerAsync(model.NomeMacchina, model.IP_Address, model.Porta, false);
         }
 
-        // --- METODO CORRETTO ---
         public async Task DeleteServerAsync(string nomeMacchina)
         {
             if (_serverInstances.TryRemove(nomeMacchina, out var instance))
@@ -128,28 +135,43 @@ namespace Online
                 await instance.DisconnectAsync();
                 instance.Dispose();
             }
-
-            // Rimuove la configurazione persistente per il server eliminato.
             await _monitoringConfigService.RemoveServerConfigAsync(nomeMacchina);
-
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-            // Trova la connessione principale da eliminare.
             var connessioneDb = await dbContext.Connessioni.FindAsync(nomeMacchina);
             if (connessioneDb != null)
             {
-                // Rimuove solo il record "padre".
-                // Si presuppone che il database abbia una FOREIGN KEY con ON DELETE CASCADE
-                // per eliminare automaticamente i record "figli" (i log) associati.
-                // Questo è l'approccio standard e previene errori di concorrenza.
                 dbContext.Connessioni.Remove(connessioneDb);
                 await dbContext.SaveChangesAsync();
             }
         }
 
         private ApplicationConfiguration BuildClientConfiguration() { var config = new ApplicationConfiguration() { ApplicationName = "OpcUaWebAppClient", ApplicationType = ApplicationType.Client, ClientConfiguration = new ClientConfiguration { DefaultSessionTimeout = 60000 }, SecurityConfiguration = new SecurityConfiguration { ApplicationCertificate = new CertificateIdentifier { StoreType = @"Directory", StorePath = @"%CommonApplicationData%\OPC Foundation\CertificateStores\MachineDefault", SubjectName = "OpcUaWebAppClient" }, TrustedIssuerCertificates = new CertificateTrustList { StoreType = @"Directory", StorePath = @"%CommonApplicationData%\OPC Foundation\CertificateStores\UA Certificate Authorities" }, TrustedPeerCertificates = new CertificateTrustList { StoreType = @"Directory", StorePath = @"%CommonApplicationData%\OPC Foundation\CertificateStores\UA Applications" }, RejectedCertificateStore = new CertificateStoreIdentifier { StoreType = @"Directory", StorePath = @"%CommonApplicationData%\OPC Foundation\CertificateStores\RejectedCertificates" }, AutoAcceptUntrustedCertificates = true }, CertificateValidator = new CertificateValidator() }; config.CertificateValidator.CertificateValidation += (validator, eventArgs) => { if (ServiceResult.IsBad(eventArgs.Error)) eventArgs.Accept = true; }; config.Validate(ApplicationType.Client).Wait(); var application = new ApplicationInstance(config); application.CheckApplicationInstanceCertificate(false, 2048).Wait(); return config; }
-        public async Task AddAndConnectServerAsync(string nomeMacchina, string ipAddress, int port, bool saveToDb = true) { if (_serverInstances.ContainsKey(nomeMacchina)) { _logger.LogWarning("Server '{nomeMacchina}' già registrato.", nomeMacchina); return; } if (saveToDb) { using var scope = _scopeFactory.CreateScope(); var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>(); if (!await dbContext.Connessioni.AnyAsync(c => c.NomeMacchina == nomeMacchina)) { dbContext.Connessioni.Add(new Connessione { NomeMacchina = nomeMacchina, IP_Address = ipAddress, Porta = port }); await dbContext.SaveChangesAsync(); } } var serverMonitoringConfig = _monitoringConfigService.GetConfigForServer(nomeMacchina); var serverInstance = new OpcServerInstance(nomeMacchina, ipAddress, port, _clientConfig, _scopeFactory, _logger, _configuration, _httpClientFactory, _monitoringConfigService, serverMonitoringConfig); _serverInstances.TryAdd(nomeMacchina, serverInstance); await serverInstance.ConnectAsync(); _logger.LogInformation("Aggiunto server '{nomeMacchina}' e tentata connessione.", nomeMacchina); }
+
+        public async Task AddAndConnectServerAsync(string nomeMacchina, string ipAddress, int port, bool saveToDb = true)
+        {
+            if (_serverInstances.ContainsKey(nomeMacchina))
+            {
+                _logger.LogWarning("Server '{nomeMacchina}' già registrato.", nomeMacchina); return;
+            }
+            if (saveToDb)
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                if (!await dbContext.Connessioni.AnyAsync(c => c.NomeMacchina == nomeMacchina))
+                {
+                    // --- MODIFICA CHIAVE ---
+                    // Aggiunta la proprietà 'Tipo' con valore "opcua" durante la creazione.
+                    dbContext.Connessioni.Add(new Connessione { NomeMacchina = nomeMacchina, IP_Address = ipAddress, Porta = port, Tipo = "opcua" });
+                    await dbContext.SaveChangesAsync();
+                }
+            }
+            var serverMonitoringConfig = _monitoringConfigService.GetConfigForServer(nomeMacchina);
+            var serverInstance = new OpcServerInstance(nomeMacchina, ipAddress, port, _clientConfig, _scopeFactory, _logger, _configuration, _httpClientFactory, _monitoringConfigService, serverMonitoringConfig);
+            _serverInstances.TryAdd(nomeMacchina, serverInstance);
+            await serverInstance.ConnectAsync(); _logger.LogInformation("Aggiunto server '{nomeMacchina}' e tentata connessione.", nomeMacchina);
+        }
+
         public OpcServerInstance? GetServerInstance(string nomeMacchina) => _serverInstances.GetValueOrDefault(nomeMacchina);
         public List<OpcServerInstance> GetAllServerInstances() => _serverInstances.Values.ToList();
     }
