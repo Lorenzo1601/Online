@@ -51,8 +51,6 @@ namespace Online
             using var scope = _scopeFactory.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            // --- MODIFICA CHIAVE ---
-            // Aggiunto il filtro per caricare solo le connessioni di tipo "opcua".
             var savedConnections = dbContext.Connessioni.Where(c => c.Tipo == "opcua").ToList();
             _logger.LogInformation($"Trovate {savedConnections.Count} connessioni di tipo 'opcua'.");
 
@@ -99,8 +97,6 @@ namespace Online
                     using var transaction = await dbContext.Database.BeginTransactionAsync();
                     try
                     {
-                        // --- MODIFICA CHIAVE ---
-                        // Aggiunta la proprietà 'Tipo' per mantenerla durante l'aggiornamento.
                         var newConnection = new Connessione { NomeMacchina = model.NomeMacchina, IP_Address = model.IP_Address, Porta = model.Porta, Tipo = connectionToUpdate.Tipo };
                         dbContext.Connessioni.Add(newConnection);
                         await dbContext.SaveChangesAsync();
@@ -118,8 +114,6 @@ namespace Online
                 }
                 else
                 {
-                    // --- MODIFICA CHIAVE ---
-                    // Aggiunta la proprietà 'Tipo' per mantenerla durante l'aggiornamento.
                     var entityToUpdate = new Connessione { NomeMacchina = model.NomeMacchina, IP_Address = model.IP_Address, Porta = model.Porta, Tipo = connectionToUpdate.Tipo };
                     dbContext.Connessioni.Update(entityToUpdate);
                     await dbContext.SaveChangesAsync();
@@ -160,8 +154,6 @@ namespace Online
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 if (!await dbContext.Connessioni.AnyAsync(c => c.NomeMacchina == nomeMacchina))
                 {
-                    // --- MODIFICA CHIAVE ---
-                    // Aggiunta la proprietà 'Tipo' con valore "opcua" durante la creazione.
                     dbContext.Connessioni.Add(new Connessione { NomeMacchina = nomeMacchina, IP_Address = ipAddress, Porta = port, Tipo = "opcua" });
                     await dbContext.SaveChangesAsync();
                 }
@@ -288,6 +280,18 @@ namespace Online
             {
                 using var scope = _scopeFactory.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                // --- FIX: Controlla che la connessione genitore esista prima di salvare il log ---
+                // Questo previene errori di Foreign Key se la connessione viene eliminata
+                // mentre arriva un ultimo dato.
+                var parentConnectionExists = dbContext.Connessioni.Any(c => c.NomeMacchina == serverInstance.NomeMacchina);
+                if (!parentConnectionExists)
+                {
+                    _logger.LogWarning("Salvataggio del log per '{NomeMacchina}' saltato perché la connessione non esiste più.", serverInstance.NomeMacchina);
+                    return; // Esce senza tentare di salvare
+                }
+                // --- FINE FIX ---
+
                 var logEntry = new MacchinaOpcUaLog { NomeMacchina = serverInstance.NomeMacchina, Nome = monitoredItem.DisplayName, Nodo = nodeId, Valore = value.Value?.ToString(), Qualita = Opc.Ua.StatusCodes.GetBrowseName(value.StatusCode.Code), Timestamp = value.SourceTimestamp.ToLocalTime() };
                 dbContext.MacchineOpcUaLog.Add(logEntry);
                 dbContext.SaveChanges();
