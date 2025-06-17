@@ -14,6 +14,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Online
@@ -189,6 +191,19 @@ namespace Online
         private readonly MonitoringConfigService _monitoringConfigService;
         private readonly ServerMonitoringConfig _serverConfig;
 
+        // --- NEW: Fields for alarm batching and rate limiting ---
+        private readonly ConcurrentQueue<AlarmDetail> _telegramAlarmQueue = new();
+        private readonly ConcurrentDictionary<string, DateTime> _lastAlarmTimestamps = new();
+        private Timer? _alarmBatchingTimer;
+        private readonly object _alarmTimerLock = new();
+
+        // --- NEW: Helper class for alarm details ---
+        private class AlarmDetail
+        {
+            public required string TagName { get; set; }
+            public required string Quality { get; set; }
+        }
+
         public OpcServerInstance(
             string nomeMacchina, string ipAddress, int port, ApplicationConfiguration clientConfig,
             IServiceScopeFactory scopeFactory, ILogger logger, IConfiguration configuration, IHttpClientFactory httpClientFactory,
@@ -276,35 +291,85 @@ namespace Online
             var value = notification.Value;
             var nodeId = monitoredItem.StartNodeId.ToString();
 
+            // --- Database Logging (unchanged) ---
             if (serverInstance._serverConfig.DbLoggingNodes.ContainsKey(nodeId))
             {
                 using var scope = _scopeFactory.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                // --- FIX: Controlla che la connessione genitore esista prima di salvare il log ---
-                // Questo previene errori di Foreign Key se la connessione viene eliminata
-                // mentre arriva un ultimo dato.
                 var parentConnectionExists = dbContext.Connessioni.Any(c => c.NomeMacchina == serverInstance.NomeMacchina);
                 if (!parentConnectionExists)
                 {
                     _logger.LogWarning("Salvataggio del log per '{NomeMacchina}' saltato perché la connessione non esiste più.", serverInstance.NomeMacchina);
-                    return; // Esce senza tentare di salvare
+                    return;
                 }
-                // --- FINE FIX ---
 
                 var logEntry = new MacchinaOpcUaLog { NomeMacchina = serverInstance.NomeMacchina, Nome = monitoredItem.DisplayName, Nodo = nodeId, Valore = value.Value?.ToString(), Qualita = Opc.Ua.StatusCodes.GetBrowseName(value.StatusCode.Code), Timestamp = value.SourceTimestamp.ToLocalTime() };
                 dbContext.MacchineOpcUaLog.Add(logEntry);
                 dbContext.SaveChanges();
             }
 
+            // --- MODIFIED: Telegram Alarming Logic ---
             if (serverInstance._serverConfig.TelegramAlarmingNodes.ContainsKey(nodeId))
             {
                 if (value.StatusCode.Code != Opc.Ua.StatusCodes.Good)
                 {
-                    var message = $"⚠️ *Allarme Qualità OPC UA*\n\n" + $"*Macchina*: `{serverInstance.NomeMacchina}`\n" + $"*Tag*: `{monitoredItem.DisplayName}`\n" + $"*Qualità*: `{Opc.Ua.StatusCodes.GetBrowseName(value.StatusCode.Code)}`";
-                    _ = SendTelegramNotificationAsync(message);
+                    var now = DateTime.UtcNow;
+                    // 1. Check for 5-minute cooldown for this specific tag
+                    if (_lastAlarmTimestamps.TryGetValue(nodeId, out var lastTime) && (now - lastTime) < TimeSpan.FromMinutes(5))
+                    {
+                        // Still on cooldown, do nothing.
+                        return;
+                    }
+
+                    // 2. Not on cooldown. Update timestamp and queue the alarm.
+                    _lastAlarmTimestamps[nodeId] = now;
+
+                    var alarmDetail = new AlarmDetail
+                    {
+                        TagName = monitoredItem.DisplayName,
+                        Quality = Opc.Ua.StatusCodes.GetBrowseName(value.StatusCode.Code)
+                    };
+                    _telegramAlarmQueue.Enqueue(alarmDetail);
+
+                    // 3. Reset a timer to send the batch of alarms in 2 seconds.
+                    // This collects other alarms that might arrive in quick succession.
+                    lock (_alarmTimerLock)
+                    {
+                        _alarmBatchingTimer?.Dispose(); // Cancel any pending timer
+                        _alarmBatchingTimer = new Timer(async _ => await ProcessAndSendBatchAlarmAsync(), null, 2000, Timeout.Infinite);
+                    }
                 }
             }
+        }
+
+        // --- NEW: Method to process and send batched alarms ---
+        private async Task ProcessAndSendBatchAlarmAsync()
+        {
+            var alarmsToSend = new List<AlarmDetail>();
+            while (_telegramAlarmQueue.TryDequeue(out var alarm))
+            {
+                alarmsToSend.Add(alarm);
+            }
+
+            if (!alarmsToSend.Any())
+            {
+                return;
+            }
+
+            // Build a single message for all alarms in the batch
+            var messageBuilder = new StringBuilder();
+            messageBuilder.AppendLine($"⚠️ *Allarme Qualità OPC UA*");
+            messageBuilder.AppendLine($"*Macchina*: `{NomeMacchina}`\n");
+
+            foreach (var alarm in alarmsToSend)
+            {
+                messageBuilder.AppendLine($"*Tag*: `{alarm.TagName}`");
+                messageBuilder.AppendLine($"*Qualità*: `{alarm.Quality}`\n");
+            }
+
+            _logger.LogInformation("Invio di un allarme Telegram in batch per {MachineName} con {Count} tag.", NomeMacchina, alarmsToSend.Count);
+            await SendTelegramNotificationAsync(messageBuilder.ToString());
         }
 
         private Task EnsureMonitoredAsync(string nodeId, string displayName)
@@ -398,6 +463,16 @@ namespace Online
         public Task<List<OpcNodeViewModel>> ReadValuesAsync(List<string> nodeIds) { if (!IsConnected || _session == null || nodeIds == null || !nodeIds.Any()) return Task.FromResult(new List<OpcNodeViewModel>()); try { var updatedValues = new List<OpcNodeViewModel>(); var nodesToRead = new ReadValueIdCollection(nodeIds.Select(id => new ReadValueId { NodeId = new NodeId(id), AttributeId = Attributes.Value })); _session.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out DataValueCollection values, out _); for (int i = 0; i < values.Count; i++) updatedValues.Add(new OpcNodeViewModel { NodeId = nodeIds[i], Value = values[i].Value?.ToString() ?? "null", Status = Opc.Ua.StatusCode.LookupSymbolicId(values[i].StatusCode.Code) }); return Task.FromResult(updatedValues); } catch (ServiceResultException sre) when (sre.StatusCode == Opc.Ua.StatusCodes.BadNotConnected) { StartReconnectionLoop(); throw new InvalidOperationException($"La connessione con il server '{NomeMacchina}' è stata persa."); } }
         private async Task SendTelegramNotificationAsync(string message) { var botToken = _configuration["Telegram:BotToken"]; var chatId = _configuration["Telegram:ChatId"]; if (string.IsNullOrEmpty(botToken) || string.IsNullOrEmpty(chatId)) return; var httpClient = _httpClientFactory.CreateClient("TelegramNotifier"); var url = $"https://api.telegram.org/bot{botToken}/sendMessage?chat_id={chatId}&text={Uri.EscapeDataString(message)}&parse_mode=Markdown"; await httpClient.PostAsync(url, null); }
         public async Task DisconnectAsync() { if (_session != null) await _session.CloseAsync(); }
-        public void Dispose() { _reconnectionTimer?.Dispose(); DisconnectAsync().Wait(); _session?.Dispose(); }
+
+        public void Dispose()
+        {
+            // --- MODIFIED: Ensure new timers are disposed ---
+            _reconnectionTimer?.Dispose();
+            _alarmBatchingTimer?.Dispose();
+
+            DisconnectAsync().Wait();
+            _session?.Dispose();
+            GC.SuppressFinalize(this);
+        }
     }
 }
