@@ -1,0 +1,187 @@
+﻿@model Online.Models.RicetteViewModel
+@using System.Text.RegularExpressions
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+@{
+    ViewData["Title"] = "Editor Ricette";
+}
+
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(-45deg, #1a1a1a, #252525);
+            background-attachment: fixed;
+            color: #e0e0e0;
+        }
+
+        h1.display-4 {
+            color: #ffffff;
+            text-shadow: 0 0 15px rgba(100, 181, 246, 0.25);
+            font-weight: 600;
+        }
+
+        .card {
+            background: rgba(45, 45, 45, 0.7);
+            border: 1px solid rgba(64, 64, 64, 0.5);
+            border-radius: 12px;
+            backdrop-filter: blur(12px);
+        }
+
+        .card-header {
+            background: rgba(51, 51, 51, 0.7);
+            border-bottom: 1px solid rgba(72, 72, 72, 0.7);
+            border-radius: 12px 12px 0 0 !important;
+        }
+
+        .card-body {
+            background: rgba(30,30,30,0.3);
+        }
+
+        .form-control, .form-select {
+            background-color: #252525;
+            border-color: #444;
+            color: #e0e0e0;
+        }
+
+            .form-control:focus, .form-select:focus {
+                background-color: #252525;
+                border-color: #64b5f6;
+                color: #e0e0e0;
+                box-shadow: 0 0 0 0.2rem rgba(100,181,246,.25);
+            }
+
+        .modal-content {
+            background: #2d2d2d;
+            border: 1px solid #404040;
+        }
+
+        .table {
+            --bs-table-bg: transparent;
+            --bs-table-color: #e0e0e0;
+            --bs-table-border-color: #404040;
+            --bs-table-striped-color: #f2f2f2;
+            --bs-table-striped-bg: rgba(255, 255, 255, 0.05);
+        }
+
+        .browse-node-btn {
+            cursor: pointer;
+        }
+
+        .opc-tree-container {
+            min-height: 200px;
+            max-height: 50vh;
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: #252525;
+            border-radius: 5px;
+        }
+
+            .opc-tree-container ul {
+                list-style-type: none;
+                padding-left: 20px;
+            }
+
+            .opc-tree-container li > span {
+                cursor: pointer;
+                padding: 2px 5px;
+                border-radius: 3px;
+            }
+
+                .opc-tree-container li > span:hover {
+                    background-color: #383838;
+                }
+
+            .opc-tree-container i {
+                margin-right: 8px;
+            }
+    </style>
+</head>
+
+<h1 class="display-4 text-center mb-4">@ViewData["Title"]</h1>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+    <a href="#" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addRecipeModal"><i class="fas fa-plus me-2"></i>Aggiungi Ricetta</a>
+</div>
+
+<div class="accordion" id="ricetteAccordion">
+    @if (Model.Ricette != null && Model.Ricette.Any())
+    {
+        @foreach (var ricetta in Model.Ricette)
+        {
+            var safeName = Regex.Replace(ricetta.NomeRicetta, "[^a-zA-Z0-9]", "");
+            var collapseId = $"collapse-{safeName}";
+            var headerId = $"header-{safeName}";
+
+            <div class="accordion-item bg-transparent border-0 mb-3" data-recipe-name="@ricetta.NomeRicetta">
+                <div class="card">
+                    <div class="card-header" id="@headerId">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h2 class="mb-0">
+                                <button class="btn btn-link text-white text-decoration-none fs-5" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId" aria-expanded="false" aria-controls="@collapseId">
+                                    <i class="fas fa-book-open me-2 opacity-75"></i>
+                                    <span class="recipe-name">@ricetta.NomeRicetta</span>
+                                </button>
+                            </h2>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary btn-edit me-2" title="Modifica Nome Ricetta" data-bs-toggle="modal" data-bs-target="#editRecipeModal" data-recipe-name="@ricetta.NomeRicetta">
+                                    <i class="fas fa-pencil-alt"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger btn-delete" title="Elimina Ricetta" data-recipe-name="@ricetta.NomeRicetta">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="@collapseId" class="accordion-collapse collapse" aria-labelledby="@headerId" data-bs-parent="#ricetteAccordion">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-start mb-3">
+                                <button class="btn btn-sm btn-outline-success btn-add-tag"><i class="fas fa-plus"></i> Aggiungi Tag</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome Tag</th>
+                                            <th>Nome Macchina</th>
+                                            <th>Connessione (NodeId)</th>
+                                            <th>Valore</th>
+                                            <th style="width: 5%;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <button class="btn btn-outline-success btn-save-recipe"><i class="fas fa-save me-2"></i>Salva Parametri</button>
+                                <button class="btn btn-outline-info btn-send-recipe"><i class="fas fa-paper-plane me-2"></i>Invia Ricetta</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@await Html.PartialAsync("_RicetteModalsPartial")
+
+@section Scripts {
+    <script>
+        // Pass data and URLs from the server (Razor) to the external JavaScript file
+        window.allMachines = @Html.Raw(Json.Serialize(Model.MacchineDisponibili));
+        window.antiForgeryToken = '@Xsrf.GetAndStoreTokens(Context).RequestToken';
+        window.ricetteUrls = {
+            getParametri: '@Url.Action("GetParametriRicetta", "Home")',
+            salvaParametri: '@Url.Action("SalvaParametri", "Home")',
+            inviaRicetta: '@Url.Action("InviaRicetta", "Home")',
+            addRicetta: '@Url.Action("AddRicetta", "Home")',
+            editRicetta: '@Url.Action("EditRicetta", "Home")',
+            deleteRicetta: '@Url.Action("DeleteRicetta", "Home")'
+        };
+        window.opcUaUrls = {
+            browse: '@Url.Action("Browse", "OpcUa")' // Assumes you have an OpcUaController for this
+        };
+    </script>
+    <script src="~/js/ricette.js" asp-append-version="true"></script>
+}

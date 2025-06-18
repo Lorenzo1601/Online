@@ -18,17 +18,18 @@ namespace Online.Data
         public DbSet<Connessione> Connessioni { get; set; }
         public DbSet<MacchinaOpcUaLog> MacchineOpcUaLog { get; set; }
 
+        // DbSet per la funzionalità Ricette
+        public DbSet<Ricetta> Ricette { get; set; }
+        public DbSet<ParametroRicetta> ParametriRicette { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // --- CORREZIONE APPLICATA QUI ---
             // Definisce la chiave primaria composta per l'entità 'Macchina'.
-            // Questo risolve l'eccezione InvalidOperationException.
             modelBuilder.Entity<Macchina>()
                 .HasKey(m => new { m.NomeMacchina, m.IP_Address });
-            // --- FINE CORREZIONE ---
 
             // Configurazione per la nuova tabella Connessioni
             modelBuilder.Entity<Connessione>()
@@ -42,6 +43,14 @@ namespace Online.Data
                 .HasOne(log => log.Connessione)
                 .WithMany()
                 .HasForeignKey(log => log.NomeMacchina);
+
+            // Configurazione per la nuova tabella Ricette
+            modelBuilder.Entity<Ricetta>()
+                .HasKey(r => r.NomeRicetta);
+
+            // Configurazione per la nuova tabella dei parametri delle ricette
+            modelBuilder.Entity<ParametroRicetta>()
+                .HasKey(p => new { p.NomeRicetta, p.NomeTag });
         }
     }
 }
