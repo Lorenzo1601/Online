@@ -276,13 +276,16 @@
         <div class="col-md-8">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3>@ViewData["Title"]</h3>
-                <a asp-action="ExportToCsv" class="btn btn-outline-custom-blue btn-sm btn-icon-text">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-spreadsheet" viewBox="0 0 16 16">
-                        <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z" />
-                        <path d="M2 6h12v2H2zm0 3h12v2H2zm0 3h12v2H2z" />
-                    </svg>
-                    Esporta CSV
-                </a>
+                <!-- FIX: Changed from <a> tag to a <form> for more reliable CSV export -->
+                <form asp-action="ExportToCsv" method="get" class="d-inline">
+                    <button type="submit" class="btn btn-outline-custom-blue btn-sm btn-icon-text">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-spreadsheet" viewBox="0 0 16 16">
+                            <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z" />
+                            <path d="M2 6h12v2H2zm0 3h12v2H2zm0 3h12v2H2z" />
+                        </svg>
+                        Esporta CSV
+                    </button>
+                </form>
             </div>
             <table class="table table-hover table-minimal" id="macchineTable">
                 <thead>
@@ -504,7 +507,7 @@
                     var ip   = this.dataset.ipAddress;
                     document.getElementById('editOriginalNomeMacchina').value = nome;
                     document.getElementById('editOriginalIPAddress').value   = ip;
-                    document.getElementById('editNomeMacchina').value         = nome;
+                    document.getElementById('editNomeMacchina').value        = nome;
                     document.getElementById('editIPAddress').value           = ip;
 
                     // pulisco eventuali errori precedenti
@@ -518,9 +521,9 @@
             });
 
             // ---- Gestione Modale Delete ----
-            var deleteModalEl   = document.getElementById('deleteConfirmModal');
-            var deleteModal     = new bootstrap.Modal(deleteModalEl);
-            var formToDelete    = null;
+            var deleteModalEl  = document.getElementById('deleteConfirmModal');
+            var deleteModal    = new bootstrap.Modal(deleteModalEl);
+            var formToDelete   = null;
 
             document.querySelectorAll('.open-delete-modal-btn').forEach(btn => {
                 btn.addEventListener('click', function () {
@@ -611,9 +614,9 @@
 
                 headers.forEach(header => {
                     header.addEventListener('click', () => {
-                        const colIndex   = parseInt(header.dataset.column, 10);
-                        const sortType   = header.dataset.sortType;
-                        const asc        = !header.classList.contains('sorted-asc');
+                        const colIndex  = parseInt(header.dataset.column, 10);
+                        const sortType  = header.dataset.sortType;
+                        const asc       = !header.classList.contains('sorted-asc');
                         headers.forEach(h => {
                             h.classList.remove('sorted-asc','sorted-desc','sorted');
                             h.querySelector('.sort-arrow').textContent = '';

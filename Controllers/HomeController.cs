@@ -396,6 +396,23 @@ namespace Online.Controllers
 
         private string EscapeCsvField(string field) { if (string.IsNullOrEmpty(field)) return string.Empty; if (field.Contains(";") || field.Contains("\"") || field.Contains("\n") || field.Contains("\r")) return $"\"{field.Replace("\"", "\"\"")}\""; return field; }
 
+        // ***** FIX: METODO ExportToCsv AGGIUNTO *****
+        [HttpGet]
+        public async Task<IActionResult> ExportToCsv()
+        {
+            var macchine = await _context.Macchine.OrderBy(m => m.NomeMacchina).ToListAsync();
+            var builder = new StringBuilder();
+            builder.AppendLine("NomeMacchina,IP_Address"); // Header
+
+            foreach (var macchina in macchine)
+            {
+                builder.AppendLine($"{EscapeCsvField(macchina.NomeMacchina)},{EscapeCsvField(macchina.IP_Address)}");
+            }
+
+            string fileName = $"Macchine_{DateTime.Now:yyyyMMddHHmmss}.csv";
+            return File(Encoding.UTF8.GetBytes(builder.ToString()), "text/csv", fileName);
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ImportFromCsv(IFormFile csvFile)
@@ -557,7 +574,7 @@ namespace Online.Controllers
                     "UPDATE ricette SET NomeRicetta = {0} WHERE NomeRicetta = {1}",
                     model.NewNomeRicetta,
                     model.OriginalNomeRicetta);
-                
+
                 await transaction.CommitAsync();
 
                 _logger.LogInformation("Ricetta rinominata da '{OldName}' a '{NewName}'.", model.OriginalNomeRicetta, model.NewNomeRicetta);
@@ -620,9 +637,9 @@ namespace Online.Controllers
                 return BadRequest();
             }
             var parametri = await _context.ParametriRicette
-                                          .Where(p => p.NomeRicetta == nomeRicetta)
-                                          .OrderBy(p => p.NomeTag)
-                                          .ToListAsync();
+                                        .Where(p => p.NomeRicetta == nomeRicetta)
+                                        .OrderBy(p => p.NomeTag)
+                                        .ToListAsync();
             return Ok(parametri);
         }
 
@@ -675,8 +692,8 @@ namespace Online.Controllers
             }
 
             var parametri = await _context.ParametriRicette
-                                          .Where(p => p.NomeRicetta == model.NomeRicetta)
-                                          .ToListAsync();
+                                        .Where(p => p.NomeRicetta == model.NomeRicetta)
+                                        .ToListAsync();
 
             if (!parametri.Any())
             {
@@ -816,8 +833,8 @@ namespace Online.Controllers
                 }
 
                 var fileNames = Directory.GetFiles(directoryPath, "*.txt")
-                                             .Select(Path.GetFileName)
-                                             .ToList();
+                                            .Select(Path.GetFileName)
+                                            .ToList();
 
                 return Json(new { success = true, files = fileNames });
             }
