@@ -4,21 +4,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Online.Models;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Text.Json;
-using System.Net.NetworkInformation;
+using System.IO;
 using System.Net.Http;
 using System.Text;
-using System.IO;
-using Microsoft.AspNetCore.Http;
 using System.Threading;
 using Online.Data;
 using Microsoft.AspNetCore.Hosting;
-// Aggiunto per la gestione della cultura (separatori decimali)
+using System.Net.NetworkInformation;
 using System.Globalization;
+using System.Text.Json;
+// Assicurati che il namespace del tuo servizio OPC UA sia referenziato
+// Esempio: using Online;
 
 namespace Online.Controllers
 {
@@ -47,6 +47,23 @@ namespace Online.Controllers
         public string FileName { get; set; }
     }
 
+    public class EditRicettaModel
+    {
+        public string OriginalNomeRicetta { get; set; }
+        public string NewNomeRicetta { get; set; }
+    }
+
+    public class SalvaParametriModel
+    {
+        public string NomeRicetta { get; set; }
+        public List<ParametroRicetta> Parametri { get; set; }
+    }
+
+    public class InviaRicettaModel
+    {
+        public string NomeRicetta { get; set; }
+    }
+
 
     public class HomeController : Controller
     {
@@ -54,6 +71,7 @@ namespace Online.Controllers
         private readonly ILogger<HomeController> _logger;
         private readonly IConfiguration _configuration;
         private readonly IWebHostEnvironment _hostingEnvironment;
+        private readonly OpcUaMultiServerService _opcUaService; // Aggiunto il servizio OPC UA
         private static readonly HttpClient _httpClient = new HttpClient();
 
         private static Dictionary<string, bool> _lastKnownMachineServerStatus = new Dictionary<string, bool>();
@@ -64,12 +82,18 @@ namespace Online.Controllers
         private static Timer _telegramNotificationTimer;
         private const int TELEGRAM_MESSAGE_INTERVAL_MS = 1500;
 
-        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IConfiguration configuration, IWebHostEnvironment hostingEnvironment)
+        public HomeController(
+            ILogger<HomeController> logger,
+            ApplicationDbContext context,
+            IConfiguration configuration,
+            IWebHostEnvironment hostingEnvironment,
+            OpcUaMultiServerService opcUaService) // Iniezione del servizio
         {
             _logger = logger;
             _context = context;
             _configuration = configuration;
             _hostingEnvironment = hostingEnvironment;
+            _opcUaService = opcUaService; // Memorizza l'istanza del servizio
 
             if (_telegramNotificationTimer == null)
             {
@@ -198,8 +222,8 @@ namespace Online.Controllers
                 {
                     _logger.LogInformation("La chiave primaria è cambiata. Procedo con rimozione e aggiunta.");
                     var existingWithNewKey = await _context.Macchine
-                                                            .AsNoTracking()
-                                                            .FirstOrDefaultAsync(m => m.NomeMacchina == editModel.NomeMacchina && m.IP_Address == editModel.IP_Address);
+                                                        .AsNoTracking()
+                                                        .FirstOrDefaultAsync(m => m.NomeMacchina == editModel.NomeMacchina && m.IP_Address == editModel.IP_Address);
 
                     if (existingWithNewKey != null)
                     {
@@ -469,6 +493,234 @@ namespace Online.Controllers
             return View(filteredLogs);
         }
 
+        #region Ricette Actions
+
+        [HttpGet]
+        public async Task<IActionResult> Ricette()
+        {
+            _logger.LogInformation("Caricamento pagina Ricette.");
+            var viewModel = new RicetteViewModel
+            {
+                Ricette = await _context.Ricette.OrderBy(r => r.NomeRicetta).ToListAsync(),
+                MacchineDisponibili = await _context.Connessioni.Select(c => c.NomeMacchina).Distinct().OrderBy(name => name).ToListAsync()
+            };
+            return View(viewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddRicetta([FromBody] Ricetta ricetta)
+        {
+            if (ricetta == null || string.IsNullOrWhiteSpace(ricetta.NomeRicetta))
+            {
+                return BadRequest(new { success = false, message = "Il nome della ricetta non può essere vuoto." });
+            }
+
+            if (await _context.Ricette.AnyAsync(r => r.NomeRicetta == ricetta.NomeRicetta))
+            {
+                return Conflict(new { success = false, message = "Una ricetta con questo nome esiste già." });
+            }
+
+            try
+            {
+                _context.Ricette.Add(ricetta);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Ricetta '{NomeRicetta}' aggiunta con successo.", ricetta.NomeRicetta);
+                return Ok(new { success = true, message = "Ricetta aggiunta con successo!" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Errore durante l'aggiunta della ricetta '{NomeRicetta}'.", ricetta.NomeRicetta);
+                return StatusCode(500, new { success = false, message = "Errore del server durante il salvataggio della ricetta." });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditRicetta([FromBody] EditRicettaModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.OriginalNomeRicetta) || string.IsNullOrWhiteSpace(model.NewNomeRicetta))
+            {
+                return BadRequest(new { success = false, message = "Dati non validi per la modifica." });
+            }
+
+            if (await _context.Ricette.AnyAsync(r => r.NomeRicetta == model.NewNomeRicetta))
+            {
+                return Conflict(new { success = false, message = "Esiste già una ricetta con il nuovo nome specificato." });
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+
+                await _context.Database.ExecuteSqlRawAsync(
+                    "UPDATE ricette SET NomeRicetta = {0} WHERE NomeRicetta = {1}",
+                    model.NewNomeRicetta,
+                    model.OriginalNomeRicetta);
+                
+                await transaction.CommitAsync();
+
+                _logger.LogInformation("Ricetta rinominata da '{OldName}' a '{NewName}'.", model.OriginalNomeRicetta, model.NewNomeRicetta);
+                return Ok(new { success = true, message = "Ricetta aggiornata con successo." });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Errore durante l'aggiornamento della ricetta da '{OldName}' a '{NewName}'.", model.OriginalNomeRicetta, model.NewNomeRicetta);
+                return StatusCode(500, new { success = false, message = "Errore del server durante l'aggiornamento." });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteRicetta([FromBody] Ricetta ricetta)
+        {
+            if (ricetta == null || string.IsNullOrWhiteSpace(ricetta.NomeRicetta))
+            {
+                return BadRequest(new { success = false, message = "Il nome della ricetta non può essere vuoto." });
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var ricettaToDelete = await _context.Ricette.FindAsync(ricetta.NomeRicetta);
+                if (ricettaToDelete == null)
+                {
+                    await transaction.RollbackAsync();
+                    return NotFound(new { success = false, message = "Ricetta non trovata." });
+                }
+
+                // Prima elimina i record dipendenti
+                await _context.Database.ExecuteSqlRawAsync(
+                    "DELETE FROM parametricetta WHERE NomeRicetta = {0}",
+                    ricetta.NomeRicetta);
+
+                // Poi elimina il record principale
+                _context.Ricette.Remove(ricettaToDelete);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                _logger.LogInformation("Ricetta '{NomeRicetta}' e i suoi parametri sono stati eliminati.", ricetta.NomeRicetta);
+                return Ok(new { success = true, message = "Ricetta eliminata con successo!" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Errore durante l'eliminazione della ricetta '{NomeRicetta}'.", ricetta.NomeRicetta);
+                return StatusCode(500, new { success = false, message = "Errore del server durante l'eliminazione della ricetta." });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetParametriRicetta(string nomeRicetta)
+        {
+            if (string.IsNullOrWhiteSpace(nomeRicetta))
+            {
+                return BadRequest();
+            }
+            var parametri = await _context.ParametriRicette
+                                          .Where(p => p.NomeRicetta == nomeRicetta)
+                                          .OrderBy(p => p.NomeTag)
+                                          .ToListAsync();
+            return Ok(parametri);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SalvaParametri([FromBody] SalvaParametriModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.NomeRicetta) || model.Parametri == null)
+            {
+                return BadRequest(new { success = false, message = "Dati non validi." });
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    "DELETE FROM parametricetta WHERE NomeRicetta = {0}",
+                    model.NomeRicetta);
+
+                if (model.Parametri.Any())
+                {
+                    foreach (var param in model.Parametri)
+                    {
+                        param.NomeRicetta = model.NomeRicetta;
+                    }
+                    await _context.ParametriRicette.AddRangeAsync(model.Parametri);
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new { success = true, message = "Parametri salvati con successo." });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Errore durante il salvataggio dei parametri per la ricetta {NomeRicetta}", model.NomeRicetta);
+                return StatusCode(500, new { success = false, message = "Errore del server durante il salvataggio." });
+            }
+        }
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> InviaRicetta([FromBody] InviaRicettaModel model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.NomeRicetta))
+            {
+                return BadRequest(new { success = false, message = "Nome ricetta non fornito." });
+            }
+
+            var parametri = await _context.ParametriRicette
+                                          .Where(p => p.NomeRicetta == model.NomeRicetta)
+                                          .ToListAsync();
+
+            if (!parametri.Any())
+            {
+                return BadRequest(new { success = false, message = "Nessun parametro da inviare per questa ricetta." });
+            }
+
+            _logger.LogInformation("Avvio invio reale della ricetta '{NomeRicetta}'.", model.NomeRicetta);
+
+            int successCount = 0;
+            var errors = new List<string>();
+
+            foreach (var param in parametri)
+            {
+                var serverInstance = _opcUaService.GetServerInstance(param.NomeMacchina);
+                if (serverInstance == null || !serverInstance.IsConnected)
+                {
+                    string errorMsg = $"Macchina '{param.NomeMacchina}' non trovata o non connessa.";
+                    errors.Add(errorMsg);
+                    _logger.LogWarning(errorMsg);
+                    continue;
+                }
+
+                bool writeSuccess = await serverInstance.WriteNodeValueAsync(param.Connessione, param.Valore);
+                if (writeSuccess)
+                {
+                    successCount++;
+                }
+                else
+                {
+                    string errorMsg = $"Errore scrittura tag '{param.NomeTag}' su macchina '{param.NomeMacchina}'.";
+                    errors.Add(errorMsg);
+                    _logger.LogWarning(errorMsg);
+                }
+            }
+
+            if (errors.Any())
+            {
+                string errorMessage = $"Invio completato con errori. Valori scritti correttamente: {successCount}/{parametri.Count}. Dettagli errori: {string.Join("; ", errors)}";
+                return StatusCode(500, new { success = false, message = errorMessage });
+            }
+
+            return Ok(new { success = true, message = $"Ricetta '{model.NomeRicetta}' inviata con successo. {successCount} valori scritti correttamente." });
+        }
+        #endregion
 
         [HttpGet]
         public async Task<IActionResult> ExportToExcel(string nomeMacchina, string searchString, DateTime? dataInizio, DateTime? dataFine)
@@ -564,8 +816,8 @@ namespace Online.Controllers
                 }
 
                 var fileNames = Directory.GetFiles(directoryPath, "*.txt")
-                                         .Select(Path.GetFileName)
-                                         .ToList();
+                                             .Select(Path.GetFileName)
+                                             .ToList();
 
                 return Json(new { success = true, files = fileNames });
             }

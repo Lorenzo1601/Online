@@ -12,6 +12,7 @@ using Opc.Ua.Configuration;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -191,13 +192,11 @@ namespace Online
         private readonly MonitoringConfigService _monitoringConfigService;
         private readonly ServerMonitoringConfig _serverConfig;
 
-        // --- NEW: Fields for alarm batching and rate limiting ---
         private readonly ConcurrentQueue<AlarmDetail> _telegramAlarmQueue = new();
         private readonly ConcurrentDictionary<string, DateTime> _lastAlarmTimestamps = new();
         private Timer? _alarmBatchingTimer;
         private readonly object _alarmTimerLock = new();
 
-        // --- NEW: Helper class for alarm details ---
         private class AlarmDetail
         {
             public required string TagName { get; set; }
@@ -342,8 +341,6 @@ namespace Online
                 }
             }
         }
-
-        // --- NEW: Method to process and send batched alarms ---
         private async Task ProcessAndSendBatchAlarmAsync()
         {
             var alarmsToSend = new List<AlarmDetail>();
@@ -357,7 +354,6 @@ namespace Online
                 return;
             }
 
-            // Build a single message for all alarms in the batch
             var messageBuilder = new StringBuilder();
             messageBuilder.AppendLine($"⚠️ *Allarme Qualità OPC UA*");
             messageBuilder.AppendLine($"*Macchina*: `{NomeMacchina}`\n");
@@ -462,11 +458,121 @@ namespace Online
         private async void ReconnectCallback(object? state) { _logger.LogInformation("Tentativo di riconnessione per {NomeMacchina}...", NomeMacchina); await ConnectAsync(); }
         public Task<List<OpcNodeViewModel>> ReadValuesAsync(List<string> nodeIds) { if (!IsConnected || _session == null || nodeIds == null || !nodeIds.Any()) return Task.FromResult(new List<OpcNodeViewModel>()); try { var updatedValues = new List<OpcNodeViewModel>(); var nodesToRead = new ReadValueIdCollection(nodeIds.Select(id => new ReadValueId { NodeId = new NodeId(id), AttributeId = Attributes.Value })); _session.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out DataValueCollection values, out _); for (int i = 0; i < values.Count; i++) updatedValues.Add(new OpcNodeViewModel { NodeId = nodeIds[i], Value = values[i].Value?.ToString() ?? "null", Status = Opc.Ua.StatusCode.LookupSymbolicId(values[i].StatusCode.Code) }); return Task.FromResult(updatedValues); } catch (ServiceResultException sre) when (sre.StatusCode == Opc.Ua.StatusCodes.BadNotConnected) { StartReconnectionLoop(); throw new InvalidOperationException($"La connessione con il server '{NomeMacchina}' è stata persa."); } }
         private async Task SendTelegramNotificationAsync(string message) { var botToken = _configuration["Telegram:BotToken"]; var chatId = _configuration["Telegram:ChatId"]; if (string.IsNullOrEmpty(botToken) || string.IsNullOrEmpty(chatId)) return; var httpClient = _httpClientFactory.CreateClient("TelegramNotifier"); var url = $"https://api.telegram.org/bot{botToken}/sendMessage?chat_id={chatId}&text={Uri.EscapeDataString(message)}&parse_mode=Markdown"; await httpClient.PostAsync(url, null); }
-        public async Task DisconnectAsync() { if (_session != null) await _session.CloseAsync(); }
+
+        public async Task DisconnectAsync()
+        {
+            if (_session != null)
+            {
+                await _session.CloseAsync();
+            }
+        }
+
+        // --- NUOVO METODO PER LA SCRITTURA ---
+        public async Task<bool> WriteNodeValueAsync(string nodeId, string value)
+        {
+            if (!IsConnected || _session == null)
+            {
+                _logger.LogError("Impossibile scrivere il valore: sessione non connessa per {NomeMacchina}", NomeMacchina);
+                return false;
+            }
+
+            try
+            {
+                var nodeToWrite = new NodeId(nodeId);
+
+                var node = _session.ReadNode(nodeToWrite);
+                if (node is not VariableNode variableNode)
+                {
+                    _logger.LogError("Il nodo {nodeId} non è una variabile e non può essere scritto.", nodeId);
+                    return false;
+                }
+                var dataTypeId = variableNode.DataType;
+                var builtInType = TypeInfo.GetBuiltInType(dataTypeId);
+
+                object convertedValue;
+                try
+                {
+                    switch (builtInType)
+                    {
+                        case BuiltInType.Boolean:
+                            convertedValue = bool.Parse(value);
+                            break;
+                        case BuiltInType.SByte:
+                            convertedValue = sbyte.Parse(value, CultureInfo.InvariantCulture);
+                            break;
+                        case BuiltInType.Byte:
+                            convertedValue = byte.Parse(value, CultureInfo.InvariantCulture);
+                            break;
+                        case BuiltInType.Int16:
+                            convertedValue = short.Parse(value, CultureInfo.InvariantCulture);
+                            break;
+                        case BuiltInType.UInt16:
+                            convertedValue = ushort.Parse(value, CultureInfo.InvariantCulture);
+                            break;
+                        case BuiltInType.Int32:
+                            convertedValue = int.Parse(value, CultureInfo.InvariantCulture);
+                            break;
+                        case BuiltInType.UInt32:
+                            convertedValue = uint.Parse(value, CultureInfo.InvariantCulture);
+                            break;
+                        case BuiltInType.Int64:
+                            convertedValue = long.Parse(value, CultureInfo.InvariantCulture);
+                            break;
+                        case BuiltInType.UInt64:
+                            convertedValue = ulong.Parse(value, CultureInfo.InvariantCulture);
+                            break;
+                        case BuiltInType.Float:
+                            convertedValue = float.Parse(value.Replace(',', '.'), CultureInfo.InvariantCulture);
+                            break;
+                        case BuiltInType.Double:
+                            convertedValue = double.Parse(value.Replace(',', '.'), CultureInfo.InvariantCulture);
+                            break;
+                        case BuiltInType.String:
+                            convertedValue = value;
+                            break;
+                        default:
+                            _logger.LogWarning("Tipo di dato non gestito ({type}) per il nodo {nodeId}. Tentativo di scrittura come stringa.", builtInType, nodeId);
+                            convertedValue = value;
+                            break;
+                    }
+                }
+                catch (Exception formatEx)
+                {
+                    _logger.LogError(formatEx, "Errore di conversione per il valore '{value}' nel tipo {type} per il nodo {nodeId}", value, builtInType, nodeId);
+                    return false;
+                }
+
+                WriteValueCollection nodesToWrite = new WriteValueCollection();
+                WriteValue writeValue = new WriteValue
+                {
+                    NodeId = nodeToWrite,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(new Variant(convertedValue))
+                };
+                nodesToWrite.Add(writeValue);
+
+                _session.Write(null, nodesToWrite, out StatusCodeCollection results, out _);
+
+                if (StatusCode.IsGood(results[0]))
+                {
+                    _logger.LogInformation("Valore '{value}' scritto con successo sul nodo {nodeId} per {NomeMacchina}", value, nodeId, NomeMacchina);
+                    return true;
+                }
+                else
+                {
+                    _logger.LogError("Errore durante la scrittura sul nodo {nodeId} per {NomeMacchina}. StatusCode: {statusCode}", nodeId, NomeMacchina, results[0]);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Eccezione durante la scrittura del valore sul nodo {nodeId} per {NomeMacchina}", nodeId, NomeMacchina);
+                return false;
+            }
+        }
 
         public void Dispose()
         {
-            // --- MODIFIED: Ensure new timers are disposed ---
             _reconnectionTimer?.Dispose();
             _alarmBatchingTimer?.Dispose();
 

@@ -1,0 +1,113 @@
+﻿@*
+    Partial view containing all modals for the Recipe Editor page.
+    This helps keep the main Ricette.cshtml view cleaner.
+*@
+
+<!-- Modal 1: Aggiungi Nuova Ricetta -->
+<div class="modal fade" id="addRecipeModal" tabindex="-1" aria-labelledby="addRecipeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addRecipeModalLabel">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    Aggiungi Nuova Ricetta
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addRecipeForm">
+                    <div class="mb-3">
+                        <label for="nomeRicetta" class="form-label">
+                            <i class="fas fa-utensils me-2 opacity-75"></i>
+                            Nome Ricetta
+                        </label>
+                        <input type="text" class="form-control" id="nomeRicetta" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    Annulla
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="saveRecipeBtn">
+                    <i class="fas fa-save me-2"></i>
+                    Salva
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 2: Modifica Nome Ricetta -->
+<div class="modal fade" id="editRecipeModal" tabindex="-1" aria-labelledby="editRecipeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editRecipeModalLabel">
+                    <i class="fas fa-edit me-2"></i>
+                    Modifica Nome Ricetta
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editRecipeForm">
+                    <input type="hidden" id="edit-original-recipe-name" />
+                    <div class="mb-3">
+                        <label for="edit-recipe-name" class="form-label">
+                            <i class="fas fa-utensils me-2 opacity-75"></i>
+                            Nuovo Nome Ricetta
+                        </label>
+                        <input type="text" class="form-control" id="edit-recipe-name" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    Annulla
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="updateRecipeBtn">
+                    <i class="fas fa-save me-2"></i>
+                    Salva Modifiche
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 3: Navigazione Server OPC UA -->
+<div class="modal fade" id="browseOpcServerModal" tabindex="-1" aria-labelledby="browseOpcServerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="browseOpcServerModalLabel">
+                    <i class="fas fa-sitemap me-2"></i>
+                    Naviga Server OPC UA
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Seleziona un nodo dall'albero sottostante.</p>
+                <div id="opc-tree-container-modal" class="opc-tree-container">
+                    <!-- L'albero OPC UA verrà caricato qui dinamicamente -->
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    Annulla
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="selectOpcNodeBtn" disabled>
+                    <i class="fas fa-check-circle me-2"></i>
+                    Conferma Selezione
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
