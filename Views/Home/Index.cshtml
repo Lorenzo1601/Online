@@ -42,521 +42,728 @@
     TempData.Keep("EditErrors_Json");
 }
 
-<style>
-    /* === Tema Scuro Generale === */
-    body {
-        background-color: #1a1a1a;
-        color: #e0e0e0;
-    }
+<link href="~/css/site.css" rel="stylesheet" asp-append-version="true">
+<script src="~/js/toast.js" asp-append-version="true"></script>
 
-    h3, h4 {
-        color: #fff;
-    }
-
-    /* === Card Dark === */
-    .card {
-        background-color: #2d2d2d !important;
-        border: 1px solid #404040;
-        border-radius: 8px;
-    }
-
-    .card-header {
-        background-color: #333 !important;
-        color: #fff !important;
-        border-bottom: 1px solid #404040;
-    }
-
-    .card-body {
-        background-color: #2d2d2d !important;
-    }
-
-    /* === Form Controls Dark === */
-    .form-control {
-        background-color: #333;
-        color: #e0e0e0;
-        border: 1px solid #555;
-    }
-
-        .form-control:focus {
-            background-color: #333;
-            color: #e0e0e0;
-            border-color: #64b5f6;
-            box-shadow: 0 0 0 .25rem rgba(100,181,246,.25);
-        }
-
-    .form-label {
-        color: #b0b0b0;
-    }
-
-    .form-text.text-muted {
-        color: #888 !important;
-    }
-
-    /* === Alert Dark === */
-    .alert-success {
-        background-color: #2e7d32;
-        color: #e8f5e9;
-        border-color: #388e3c;
-    }
-
-    .alert-danger {
-        background-color: #c62828;
-        color: #ffebee;
-        border-color: #d32f2f;
-    }
-
-    .alert .btn-close {
-        filter: invert(1) grayscale(100%) brightness(200%);
-    }
-
-    /* === Modal Dark === */
-    .modal-content {
-        background-color: #2d2d2d;
-        border: 1px solid #404040;
-        border-radius: 12px;
-    }
-
-    .modal-header {
-        border-bottom: 1px solid #404040;
-        background-color: #333;
-        color: #fff;
-    }
-
-        .modal-header.bg-danger {
-            background-color: #c62828 !important;
-        }
-
-    .modal-title {
-        color: #fff;
-        font-weight: 600;
-    }
-
-    .btn-close {
-        filter: invert(1);
-        opacity: .8;
-    }
-
-    .modal-body {
-        background-color: #2d2d2d;
-    }
-
-    .modal-footer {
-        border-top: 1px solid #404040;
-    }
-
-    /* === Bottoni Iconici === */
-    .btn-icon svg, .btn-icon-text svg {
-        width: 1em;
-        height: 1em;
-        vertical-align: -0.125em;
-        fill: currentColor;
-    }
-
-    .btn-icon-text svg {
-        margin-right: .35rem;
-    }
-
-    /* === Bottoni Outline Personalizzati === */
-    .btn-outline-custom-blue, .btn-outline-custom-red, .btn-outline-custom-green {
-        background-color: transparent;
-        padding: .375rem .75rem;
-        font-size: 1rem;
-        line-height: 1.5;
-        border-radius: .25rem;
-        transition: .15s ease-in-out;
-    }
-
-    .btn-outline-custom-blue {
-        border: 1px solid #64b5f6;
-        color: #64b5f6;
-    }
-
-        .btn-outline-custom-blue:hover {
-            background-color: #64b5f6;
-            color: #1a1a1a;
-        }
-
-    .btn-outline-custom-red {
-        border: 1px solid #e57373;
-        color: #e57373;
-    }
-
-        .btn-outline-custom-red:hover {
-            background-color: #e57373;
-            color: #1a1a1a;
-        }
-
-    .btn-outline-custom-green {
-        border: 1px solid #81c784;
-        color: #81c784;
-    }
-
-        .btn-outline-custom-green:hover {
-            background-color: #81c784;
-            color: #1a1a1a;
-        }
-
-    /* === TABELLA SCURA PERSONALIZZATA === */
-    .table-minimal {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        border: 1px solid #404040;
-        border-radius: 8px;
-        overflow: hidden;
-        /* FORZA sfondo scuro sul table intero */
-        background-color: #2d2d2d !important;
-    }
-
-        .table-minimal thead th {
-            background-color: #333 !important;
-            color: #fff !important;
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            font-size: .9rem;
-            text-transform: uppercase;
-            letter-spacing: .5px;
-            border-bottom: 1px solid #404040;
-        }
-
-        .table-minimal tbody tr {
-            transition: background-color .2s ease-in-out;
-        }
-
-        .table-minimal td,
-        .table-minimal th {
-            /* FORZA sfondo scuro anche su ogni cella */
-            background-color: #2d2d2d !important;
-            color: #e0e0e0 !important;
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #404040;
-        }
-
-        .table-minimal tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .table-minimal tbody tr:not(.status-offline):hover {
-            background-color: #3c3c3c !important;
-            color: #fff !important;
-        }
-
-        .table-minimal tbody tr.status-offline {
-            background-color: rgba(229,115,115,.15) !important;
-        }
-
-            .table-minimal tbody tr.status-offline:hover {
-                background-color: rgba(229,115,115,.25) !important;
-            }
-
-            .table-minimal tbody tr.status-offline td {
-                color: #f7a1a1 !important;
-            }
-</style>
-
-@if (TempData["SuccessMessage"] != null)
-{
-    <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
-        @TempData["SuccessMessage"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-}
-@if (TempData["ErrorMessage"] != null)
-{
-    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
-        @TempData["ErrorMessage"]
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-}
-
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-md-8">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3>@ViewData["Title"]</h3>
-                <a asp-action="ExportToCsv" class="btn btn-outline-custom-blue btn-sm btn-icon-text">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-earmark-spreadsheet" viewBox="0 0 16 16">
-                        <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z" />
-                        <path d="M2 6h12v2H2zm0 3h12v2H2zm0 3h12v2H2z" />
+<!-- Page Header -->
+<div class="page-header fade-in">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="text-gradient mb-2">@ViewData["Title"]</h1>
+                <p class="text-muted mb-0">Monitora e gestisci le tue macchine industriali in tempo reale</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="refreshAllMachines()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                    </svg>
+                    Aggiorna Stato
+                </button>
+                <a href="@Url.Action("ExportToCsv")" class="btn btn-outline-success">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
                     </svg>
                     Esporta CSV
                 </a>
             </div>
-            <table class="table table-hover table-minimal" id="macchineTable">
-                <thead>
-                    <tr>
-                        <th class="sortable" data-column="0" data-sort-type="alpha">Nome Macchina <span class="sort-arrow"></span></th>
-                        <th class="sortable" data-column="1" data-sort-type="ip">Indirizzo IP <span class="sort-arrow"></span></th>
-                        <th>Azioni</th>
-                    </tr>
-                </thead>
-                <tbody id="macchineTableBody">
-                    @if (Model.Macchine != null && Model.Macchine.Any())
-                    {
-                        @foreach (var item in Model.Macchine)
-                        {
-                            <tr id="row-@item.NomeMacchina.Replace(" ", "-").Replace('.', '-')-@item.IP_Address.Replace('.', '-')"
-                                data-ip="@item.IP_Address"
-                                data-nome-macchina="@item.NomeMacchina">
-                                <td>@Html.DisplayFor(m => item.NomeMacchina)</td>
-                                <td>@Html.DisplayFor(m => item.IP_Address)</td>
-                                <td>
-                                    <button type="button" class="btn btn-sm btn-outline-custom-blue me-1 edit-macchina-btn btn-icon"
-                                            data-bs-toggle="modal" data-bs-target="#editMacchinaModal"
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="container-fluid">
+    <div class="row g-4">
+        <!-- Machines Table Card -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="glass-card slide-up">
+                <div class="glass-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                                <path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z" />
+                            </svg>
+                            Macchine Monitorate
+                            <span class="badge ms-2" id="machineCount">@(Model.Macchine?.Count() ?? 0)</span>
+                        </h4>
+                        <div class="table-controls">
+                            <button class="btn btn-sm btn-outline" onclick="toggleSort('name')" id="sortName">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M18 21L14 17H17V7H14L18 3L22 7H19V17H22M2 19V17H12V19H2M2 13V11H9V13H2M2 7V5H6V7H2Z" />
+                                </svg>
+                                Nome
+                            </button>
+                            <button class="btn btn-sm btn-outline" onclick="toggleSort('ip')" id="sortIp">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M18 21L14 17H17V7H14L18 3L22 7H19V17H22M2 19V17H12V19H2M2 13V11H9V13H2M2 7V5H6V7H2Z" />
+                                </svg>
+                                IP
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-body p-0">
+                    <div class="table-responsive">
+                        <table class="table-modern" id="macchineTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40%">Nome Macchina</th>
+                                    <th style="width: 25%">Indirizzo IP</th>
+                                    <th style="width: 20%">Stato Connessione</th>
+                                    <th style="width: 15%" class="text-center">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody id="macchineTableBody">
+                                @if (Model.Macchine != null && Model.Macchine.Any())
+                                {
+                                    @foreach (var item in Model.Macchine)
+                                    {
+                                        <tr id="row-@item.NomeMacchina.Replace(" ", "-").Replace('.', '-')-@item.IP_Address.Replace('.', '-')"
+                                            data-ip="@item.IP_Address"
                                             data-nome-macchina="@item.NomeMacchina"
-                                            data-ip-address="@item.IP_Address"
-                                            title="Modifica">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-                                            <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.5.5 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11z" />
-                                        </svg>
-                                    </button>
-                                    <form asp-action="Delete" method="post" class="delete-form d-inline"
-                                          data-nome-macchina="@item.NomeMacchina" data-ip-address="@item.IP_Address">
-                                        <input type="hidden" name="nomeMacchina" value="@item.NomeMacchina" />
-                                        <input type="hidden" name="ipAddress" value="@item.IP_Address" />
-                                        @Html.AntiForgeryToken()
-                                        <button type="button" class="btn btn-sm btn-outline-custom-red btn-icon open-delete-modal-btn"
-                                                title="Elimina"
-                                                data-bs-toggle="modal" data-bs-target="#deleteConfirmModal">
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-                                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" />
-                                                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
-                                            </svg>
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                        }
-                    }
-                    else
-                    {
-                        <tr>
-                            <td colspan="3" class="text-center">Nessuna macchina presente.</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+                                            class="machine-row">
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="machine-icon me-3">
+                                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z" />
+                                                        </svg>
+                                                    </div>
+                                                    <div>
+                                                        <div class="machine-name">@Html.DisplayFor(m => item.NomeMacchina)</div>
+                                                        <div class="machine-meta text-muted">ID: @item.NomeMacchina.GetHashCode().ToString("X8")</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <code class="ip-address">@Html.DisplayFor(m => item.IP_Address)</code>
+                                                    <button class="btn btn-sm btn-icon ms-2" onclick="copyToClipboard('@item.IP_Address')" title="Copia IP">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="status-indicator status-checking" id="status-@item.IP_Address.Replace('.', '-')">
+                                                    <span class="status-text">Verificando...</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="action-buttons d-flex justify-content-center gap-2">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-icon btn-outline edit-machine-btn"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#editMacchinaModal"
+                                                            data-nome-macchina="@item.NomeMacchina"
+                                                            data-ip-address="@item.IP_Address"
+                                                            title="Modifica Macchina">
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
+                                                        </svg>
+                                                    </button>
+                                                    <form asp-action="Delete" method="post" class="delete-form d-inline"
+                                                          data-nome-macchina="@item.NomeMacchina"
+                                                          data-ip-address="@item.IP_Address">
+                                                        <input type="hidden" name="nomeMacchina" value="@item.NomeMacchina" />
+                                                        <input type="hidden" name="ipAddress" value="@item.IP_Address" />
+                                                        @Html.AntiForgeryToken()
+                                                        <button type="button"
+                                                                class="btn btn-sm btn-icon btn-outline-danger open-delete-modal-btn"
+                                                                title="Elimina Macchina"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#deleteConfirmModal">
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                                                <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
+                                                            </svg>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="4" class="text-center py-5">
+                                            <div class="empty-state">
+                                                <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor" class="text-muted mb-3">
+                                                    <path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z" />
+                                                </svg>
+                                                <h5>Nessuna macchina configurata</h5>
+                                                <p class="text-muted">Aggiungi la tua prima macchina per iniziare il monitoraggio</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- COLONNA DESTRA: AGGIUNGI & IMPORTA -->
-        <div class="col-md-4">
-            <div class="card shadow mb-4">
-                <div class="card-header">
-                    <h4 class="mb-0">Aggiungi Nuova Macchina</h4>
+        <!-- Sidebar Controls -->
+        <div class="col-xl-4 col-lg-5">
+            <!-- Add Machine Card -->
+            <div class="glass-card slide-up mb-4">
+                <div class="glass-header">
+                    <h4 class="mb-0">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                            <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                        </svg>
+                        Aggiungi Macchina
+                    </h4>
                 </div>
-                <div class="card-body">
-                    <form asp-action="Create" method="post">
+                <div class="glass-body">
+                    <form asp-action="Create" method="post" id="addMachineForm">
                         @Html.AntiForgeryToken()
-                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-                        <div class="mb-3">
-                            <label asp-for="NuovaMacchina.NomeMacchina" class="form-label"></label>
-                            <input asp-for="NuovaMacchina.NomeMacchina" class="form-control" />
+                        <div class="mb-4">
+                            <label asp-for="NuovaMacchina.NomeMacchina" class="form-label">Nome Macchina</label>
+                            <input asp-for="NuovaMacchina.NomeMacchina"
+                                   class="form-control"
+                                   placeholder="es. Pressa Idraulica 1" />
                             <span asp-validation-for="NuovaMacchina.NomeMacchina" class="text-danger"></span>
                         </div>
 
-                        <div class="mb-3">
-                            <label asp-for="NuovaMacchina.IP_Address" class="form-label"></label>
-                            <input asp-for="NuovaMacchina.IP_Address" class="form-control" />
+                        <div class="mb-4">
+                            <label asp-for="NuovaMacchina.IP_Address" class="form-label">Indirizzo IP</label>
+                            <input asp-for="NuovaMacchina.IP_Address"
+                                   class="form-control"
+                                   placeholder="192.168.1.100" />
                             <span asp-validation-for="NuovaMacchina.IP_Address" class="text-danger"></span>
                         </div>
 
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-outline-custom-green">Aggiungi Macchina</button>
-                        </div>
+                        <button type="submit" class="btn btn-success w-100">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
+                            </svg>
+                            Aggiungi Macchina
+                        </button>
                     </form>
                 </div>
             </div>
 
-            <div class="card shadow">
-                <div class="card-header">
-                    <h4 class="mb-0">Importa Macchine da CSV</h4>
+            <!-- Import CSV Card -->
+            <div class="glass-card scale-in">
+                <div class="glass-header">
+                    <h4 class="mb-0">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                        </svg>
+                        Importa da CSV
+                    </h4>
                 </div>
-                <div class="card-body">
-                    <form asp-action="ImportFromCsv" method="post" enctype="multipart/form-data">
+                <div class="glass-body">
+                    <form asp-action="ImportFromCsv" method="post" enctype="multipart/form-data" id="importForm">
                         @Html.AntiForgeryToken()
-                        <div class="mb-3">
-                            <label for="csvFile" class="form-label">Seleziona file CSV:</label>
-                            <input type="file" name="csvFile" id="csvFile" class="form-control" accept=".csv" required />
+
+                        <div class="mb-4">
+                            <label for="csvFile" class="form-label">File CSV</label>
+                            <div class="file-upload-area" id="fileUploadArea">
+                                <input type="file" name="csvFile" id="csvFile" class="form-control" accept=".csv" required />
+                                <div class="file-upload-placeholder">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" class="text-muted mb-2">
+                                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                                    </svg>
+                                    <p class="mb-1">Seleziona file CSV</p>
+                                    <small class="text-muted">o trascina qui il file</small>
+                                </div>
+                            </div>
                         </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-outline-custom-blue btn-icon-text">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-upload" viewBox="0 0 16 16">
-                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5" />
-                                    <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z" />
-                                </svg>
-                                Importa CSV
-                            </button>
-                        </div>
-                        <small class="form-text text-muted mt-2 d-block">
-                            Il file CSV deve avere le colonne 'NomeMacchina' e 'IP_Address' (in quest'ordine).
+
+                        <button type="submit" class="btn btn-outline w-100">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z" />
+                            </svg>
+                            Importa Macchine
+                        </button>
+
+                        <small class="form-text d-block mt-2">
+                            Formato richiesto: <code>NomeMacchina,IP_Address</code>
                         </small>
                     </form>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<!-- MODALE EDIT -->
-<div class="modal fade" id="editMacchinaModal" tabindex="-1" aria-labelledby="editMacchinaModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form asp-controller="Home" asp-action="Edit" method="post" id="editMacchinaForm">
-                @Html.AntiForgeryToken()
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editMacchinaModalLabel">Modifica Macchina</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <!-- Statistics Card -->
+            <div class="glass-card fade-in mt-4">
+                <div class="glass-header">
+                    <h4 class="mb-0">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                            <path d="M22,21H2V3H4V19H6V17H10V19H12V16H16V19H18V17H22V21Z" />
+                        </svg>
+                        Statistiche
+                    </h4>
                 </div>
-                <div class="modal-body">
-                    @if (openEditModalWithErrorRazor && modalValidationErrors != null && modalValidationErrors.TryGetValue(string.Empty, out var modelErrors))
-                    {
-                        <div class="text-danger mb-3">
-                            <ul>
-                                @foreach (var error in modelErrors)
-                                {
-                                    <li>@error</li>
-                                }
-                            </ul>
+                <div class="glass-body">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="totalMachines">@(Model.Macchine?.Count() ?? 0)</div>
+                            <div class="stat-label">Totale Macchine</div>
                         </div>
-                    }
-                    <input type="hidden" asp-for="@modalEditModel.OriginalNomeMacchina" id="editOriginalNomeMacchina" />
-                    <input type="hidden" asp-for="@modalEditModel.OriginalIP_Address" id="editOriginalIPAddress" />
-
-                    <div class="mb-3">
-                        <label for="editNomeMacchina" class="form-label">Nome Macchina</label>
-                        <input asp-for="@modalEditModel.NomeMacchina" class="form-control" id="editNomeMacchina" />
-                        @if (openEditModalWithErrorRazor && modalValidationErrors != null && modalValidationErrors.TryGetValue("NomeMacchina", out var nomeErrors))
-                        {
-                            @foreach (var e in nomeErrors)
-                            {
-                                <span class="text-danger d-block">@e</span>
-                            }
-                        }
-                        <span asp-validation-for="@modalEditModel.NomeMacchina" class="text-danger"></span>
-                    </div>
-                    <div class="mb-3">
-                        <label for="editIPAddress" class="form-label">Indirizzo IP</label>
-                        <input asp-for="@modalEditModel.IP_Address" class="form-control" id="editIPAddress" />
-                        @if (openEditModalWithErrorRazor && modalValidationErrors != null && modalValidationErrors.TryGetValue("IP_Address", out var ipErrors))
-                        {
-                            @foreach (var e in ipErrors)
-                            {
-                                <span class="text-danger d-block">@e</span>
-                            }
-                        }
-                        <span asp-validation-for="@modalEditModel.IP_Address" class="text-danger"></span>
+                        <div class="stat-item">
+                            <div class="stat-value status-online" id="onlineMachines">-</div>
+                            <div class="stat-label">Online</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value status-offline" id="offlineMachines">-</div>
+                            <div class="stat-label">Offline</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="lastUpdate">-</div>
+                            <div class="stat-label">Ultimo Aggiornamento</div>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-custom-red" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-outline-custom-green">Salva Modifiche</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- MODALE DELETE -->
-<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="deleteConfirmModalLabel">Conferma Eliminazione</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Sei sicuro di voler eliminare la macchina:</p>
-                <p><strong id="deleteMachineNameDisplay"></strong> (<strong id="deleteMachineIpDisplay"></strong>)?</p>
-                <p class="text-danger small">Questa azione è irreversibile.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-custom-blue" data-bs-dismiss="modal">Annulla</button>
-                <button type="button" class="btn btn-outline-custom-red" id="confirmDeleteButton">Elimina</button>
-            </div>
-        </div>
-    </div>
-</div>
+<!-- Modals -->
+@await Html.PartialAsync("_MachineModals", modalEditModel)
+
+<style>
+    /* Page-specific styles */
+    .page-header {
+        padding: var(--space-6) 0;
+        border-bottom: 1px solid var(--primary-600);
+        margin-bottom: var(--space-6);
+    }
+
+    .header-actions {
+        display: flex;
+        gap: var(--space-3);
+    }
+
+    .machine-row {
+        transition: all var(--transition-base);
+    }
+
+        .machine-row:hover {
+            background: rgba(59, 130, 246, 0.05) !important;
+            transform: translateX(4px);
+        }
+
+        .machine-row.status-offline {
+            background: rgba(239, 68, 68, 0.05) !important;
+        }
+
+    .machine-icon {
+        opacity: 0.7;
+        transition: opacity var(--transition-fast);
+    }
+
+    .machine-row:hover .machine-icon {
+        opacity: 1;
+    }
+
+    .machine-name {
+        font-weight: 600;
+        color: var(--primary-50);
+    }
+
+    .machine-meta {
+        font-size: var(--text-xs);
+        color: var(--primary-400) !important;
+    }
+
+    .ip-address {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--accent-blue);
+        padding: var(--space-1) var(--space-2);
+        border-radius: var(--radius-sm);
+        font-family: var(--font-family-mono);
+        font-size: var(--text-sm);
+    }
+
+    .action-buttons .btn {
+        transition: all var(--transition-fast);
+    }
+
+        .action-buttons .btn:hover {
+            transform: scale(1.1);
+        }
+
+    .status-checking {
+        background: var(--accent-orange-light);
+        color: var(--status-warning);
+        border: 1px solid var(--status-warning);
+    }
+
+    .file-upload-area {
+        position: relative;
+        border: 2px dashed var(--primary-600);
+        border-radius: var(--radius);
+        padding: var(--space-6);
+        text-align: center;
+        transition: all var(--transition-base);
+        cursor: pointer;
+    }
+
+        .file-upload-area:hover {
+            border-color: var(--accent-blue);
+            background: var(--accent-blue-light);
+        }
+
+        .file-upload-area.dragover {
+            border-color: var(--accent-green);
+            background: var(--accent-green-light);
+        }
+
+    .file-upload-placeholder {
+        pointer-events: none;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-4);
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: var(--space-3);
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: var(--radius);
+        border: 1px solid var(--primary-600);
+    }
+
+    .stat-value {
+        font-size: var(--text-2xl);
+        font-weight: 700;
+        color: var(--primary-50);
+        margin-bottom: var(--space-1);
+    }
+
+    .stat-label {
+        font-size: var(--text-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--primary-400);
+    }
+
+    .empty-state {
+        padding: var(--space-8);
+    }
+
+    .table-controls {
+        display: flex;
+        gap: var(--space-2);
+    }
+
+    .badge {
+        background: var(--accent-blue);
+        color: var(--primary-50);
+        padding: var(--space-1) var(--space-2);
+        border-radius: var(--radius);
+        font-size: var(--text-xs);
+        font-weight: 600;
+    }
+
+    @@media (max-width: 768px) {
+        .header-actions
+
+    {
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-2);
+    }
+
+    .action-buttons {
+        flex-direction: column !important;
+        gap: var(--space-1) !important;
+    }
+
+    }
+</style>
 
 @section Scripts {
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
     <script>
-        const openEditModalWithErrorJS = @Html.Raw(Json.Serialize(openEditModalWithErrorRazor));
-        const csrfTokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
-        const csrfToken = csrfTokenElement ? csrfTokenElement.value : null;
-        if (!csrfToken && document.querySelector('form[method="post"]')) {
-             console.warn("Token CSRF non trovato! Le azioni POST potrebbero fallire.");
-        }
+                // ============================================
+        // DASHBOARD JAVASCRIPT FIXES
+        // ============================================
 
         document.addEventListener('DOMContentLoaded', function () {
-            // ---- Gestione Modale Edit ----
-            var editMacchinaModalEl = document.getElementById('editMacchinaModal');
-            var editMacchinaModal   = new bootstrap.Modal(editMacchinaModalEl);
-            var editForm            = document.getElementById('editMacchinaForm');
+            console.log('Dashboard JavaScript inizializzato');
 
-            document.querySelectorAll('.edit-macchina-btn').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    var nome = this.dataset.nomeMacchina;
-                    var ip   = this.dataset.ipAddress;
-                    document.getElementById('editOriginalNomeMacchina').value = nome;
-                    document.getElementById('editOriginalIPAddress').value   = ip;
-                    document.getElementById('editNomeMacchina').value         = nome;
-                    document.getElementById('editIPAddress').value           = ip;
+            // Variables
+            const openEditModalWithErrorJS = typeof openEditModalWithErrorRazor !== 'undefined' ? openEditModalWithErrorRazor : false;
+            const csrfTokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+            const csrfToken = csrfTokenElement ? csrfTokenElement.value : null;
 
-                    // pulisco eventuali errori precedenti
-                    editForm.querySelectorAll('.text-danger.d-block').forEach(e => e.remove());
-                    editForm.querySelectorAll('span[data-valmsg-for]').forEach(s => s.textContent = '');
-                    var sum = editForm.querySelector('.modal-body > .text-danger.mb-3');
-                    if (sum) sum.innerHTML = '';
+            let clientStatus = {};
+            let sortOrder = { name: 'asc', ip: 'asc' };
+            const PING_INTERVAL = 10000;
 
-                    editMacchinaModal.show();
-                });
-            });
+            // Initialize all components
+            initializeModals();
+            initializeFileUpload();
+            initializeMachineMonitoring();
+            initializeUtilityFunctions();
 
-            // ---- Gestione Modale Delete ----
-            var deleteModalEl   = document.getElementById('deleteConfirmModal');
-            var deleteModal     = new bootstrap.Modal(deleteModalEl);
-            var formToDelete    = null;
-
-            document.querySelectorAll('.open-delete-modal-btn').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    formToDelete = this.closest('form.delete-form');
-                    if (formToDelete) {
-                        document.getElementById('deleteMachineNameDisplay').textContent = formToDelete.dataset.nomeMacchina;
-                        document.getElementById('deleteMachineIpDisplay').textContent   = formToDelete.dataset.ipAddress;
-                        deleteModal.show();
-                    }
-                });
-            });
-
-            document.getElementById('confirmDeleteButton').addEventListener('click', function () {
-                if (formToDelete) formToDelete.submit();
-                deleteModal.hide();
-            });
-
-            // ---- Auto-close Alert ----
-            setTimeout(() => {
-                document.querySelectorAll('.alert-dismissible').forEach(a => {
-                    if (a) new bootstrap.Alert(a).close();
-                });
-            }, 7000);
-
-            // riapri edit se ci sono errori lato server
+            // Show edit modal with errors if needed
             if (openEditModalWithErrorJS) {
-                editMacchinaModal.show();
+                const editModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('editMacchinaModal'));
+                editModal.show();
             }
 
-            // ---- Ping Automatico e notifica ----
-            const PING_INTERVAL = 10000;
-            const tbody = document.getElementById('macchineTableBody');
-            let clientStatus = {};
+            // ============================================
+            // MODAL INITIALIZATION - FIXED
+            // ============================================
+            function initializeModals() {
+                console.log('Inizializzazione modali...');
 
-            async function notifyServer(nome, ip, online) {
-                if (!csrfToken) return;
+                // Edit modal handlers - CORRETTI
+                document.querySelectorAll('.edit-machine-btn').forEach(btn => {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        console.log('Edit button clicked:', this.dataset);
+
+                        const nome = this.dataset.nomeMacchina;
+                        const ip = this.dataset.ipAddress;
+
+                        // Popola i campi hidden e visibili
+                        const originalNomeInput = document.getElementById('editOriginalNomeMacchina');
+                        const originalIpInput = document.getElementById('editOriginalIPAddress');
+                        const nomeInput = document.getElementById('editNomeMacchina');
+                        const ipInput = document.getElementById('editIPAddress');
+
+                        if (originalNomeInput) originalNomeInput.value = nome;
+                        if (originalIpInput) originalIpInput.value = ip;
+                        if (nomeInput) nomeInput.value = nome;
+                        if (ipInput) ipInput.value = ip;
+
+                        // Clear previous errors
+                        clearFormErrors(document.getElementById('editMacchinaForm'));
+
+                        console.log('Modal popolato con:', { nome, ip });
+                    });
+                });
+
+                // Delete modal handlers - CORRETTI
+                let formToDelete = null;
+
+                document.querySelectorAll('.open-delete-modal-btn').forEach(btn => {
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        console.log('Delete button clicked');
+
+                        formToDelete = this.closest('form.delete-form');
+                        if (formToDelete) {
+                            const nomeMacchina = formToDelete.dataset.nomeMacchina;
+                            const ipAddress = formToDelete.dataset.ipAddress;
+
+                            document.getElementById('deleteMachineNameDisplay').textContent = nomeMacchina;
+                            document.getElementById('deleteMachineIpDisplay').textContent = ipAddress;
+
+                            console.log('Delete modal setup per:', { nomeMacchina, ipAddress });
+                        }
+                    });
+                });
+
+                // Confirm delete handler - CORRETTO
+                const confirmDeleteBtn = document.getElementById('confirmDeleteButton');
+                if (confirmDeleteBtn) {
+                    confirmDeleteBtn.addEventListener('click', function () {
+                        console.log('Confirm delete clicked');
+                        if (formToDelete) {
+                            const loadingToast = Toast.loading('Eliminazione in corso...');
+
+                            // Submit form
+                            formToDelete.submit();
+                        }
+                    });
+                }
+            }
+
+            // ============================================
+            // FILE UPLOAD - FIXED (NO DOUBLE TRIGGER)
+            // ============================================
+            function initializeFileUpload() {
+                console.log('Inizializzazione file upload...');
+
+                const fileUploadArea = document.getElementById('fileUploadArea');
+                const fileInput = document.getElementById('csvFile');
+
+                if (!fileUploadArea || !fileInput) {
+                    console.warn('File upload elements not found');
+                    return;
+                }
+
+                // Remove any existing event listeners first
+                fileUploadArea.replaceWith(fileUploadArea.cloneNode(true));
+                const newFileUploadArea = document.getElementById('fileUploadArea');
+                const newFileInput = document.getElementById('csvFile');
+
+                // Drag & drop handlers
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    newFileUploadArea.addEventListener(eventName, preventDefaults, false);
+                });
+
+                function preventDefaults(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    newFileUploadArea.addEventListener(eventName, () => {
+                        newFileUploadArea.classList.add('dragover');
+                    }, false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    newFileUploadArea.addEventListener(eventName, () => {
+                        newFileUploadArea.classList.remove('dragover');
+                    }, false);
+                });
+
+                // Drop handler
+                newFileUploadArea.addEventListener('drop', handleDrop, false);
+
+                // Click handler - SINGLE CLICK ONLY
+                newFileUploadArea.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('File upload area clicked - opening file dialog');
+                    newFileInput.click();
+                }, false);
+
+                // File input change handler
+                newFileInput.addEventListener('change', function(e) {
+                    console.log('File input changed:', this.files);
+                    if (this.files.length > 0) {
+                        updateFileUploadDisplay(this.files[0]);
+                    }
+                });
+
+                function handleDrop(e) {
+                    console.log('File dropped');
+                    const dt = e.dataTransfer;
+                    const files = dt.files;
+
+                    if (files.length > 0) {
+                        newFileInput.files = files;
+                        updateFileUploadDisplay(files[0]);
+                    }
+                }
+
+                function updateFileUploadDisplay(file) {
+                    console.log('Updating file display:', file.name);
+                    const placeholder = newFileUploadArea.querySelector('.file-upload-placeholder');
+                    if (placeholder) {
+                        placeholder.innerHTML = `
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" class="text-success mb-2">
+                                <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/>
+                            </svg>
+                            <p class="mb-1 text-success">File selezionato</p>
+                            <small class="text-muted">${file.name} (${formatFileSize(file.size)})</small>
+                        `;
+                    }
+                }
+            }
+
+            // ============================================
+            // MACHINE MONITORING - ENHANCED
+            // ============================================
+            function initializeMachineMonitoring() {
+                console.log('Inizializzazione monitoraggio macchine...');
+
+                const tbody = document.getElementById('macchineTableBody');
+                if (!tbody || !tbody.querySelectorAll('tr[data-ip]').length) {
+                    console.log('Nessuna macchina da monitorare trovata');
+                    return;
+                }
+
+                // Initial ping
+                doAllPings();
+
+                // Set up interval
+                setInterval(doAllPings, PING_INTERVAL);
+
+                // Update last update time
+                updateLastUpdateTime();
+                setInterval(updateLastUpdateTime, 1000);
+            }
+
+            // Ping all machines
+            async function doAllPings() {
+                console.log('Esecuzione ping per tutte le macchine...');
+                const rows = document.querySelectorAll('tr[data-ip]');
+                const promises = Array.from(rows).map(row =>
+                    checkMachineStatus(row.dataset.ip, row.dataset.nomeMacchina, row.id)
+                );
+
+                await Promise.all(promises);
+                updateStatistics();
+            }
+
+            // Check individual machine status
+            async function checkMachineStatus(ip, nome, rowId) {
+                const row = document.getElementById(rowId);
+                const statusElement = document.getElementById(`status-${ip.replace(/\./g, '-')}`);
+
+                if (!row || !statusElement) {
+                    console.warn(`Elementi non trovati per IP: ${ip}`);
+                    return;
+                }
+
+                let isOnline = false;
+                try {
+                    const response = await fetch(`/Home/PingIpAddress?ipAddress=${encodeURIComponent(ip)}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        isOnline = data.reachable;
+                    }
+                } catch (error) {
+                    console.warn(`Ping failed for ${ip}:`, error);
+                }
+
+                // Update UI
+                updateMachineStatusUI(row, statusElement, isOnline);
+
+                // Notify server if status changed
+                if (clientStatus[ip] !== isOnline) {
+                    await notifyServerStatusChange(nome, ip, isOnline);
+                    clientStatus[ip] = isOnline;
+                }
+            }
+
+            // Update machine status UI
+            function updateMachineStatusUI(row, statusElement, isOnline) {
+                // Update row class
+                row.classList.toggle('status-offline', !isOnline);
+
+                // Update status indicator with better styling
+                statusElement.className = `status-indicator ${isOnline ? 'status-online' : 'status-offline'}`;
+                statusElement.innerHTML = `<span class="status-text">${isOnline ? 'Online' : 'Offline'}</span>`;
+
+                // Add subtle animation
+                statusElement.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    statusElement.style.transform = 'scale(1)';
+                }, 200);
+            }
+
+            // Notify server of status change
+            async function notifyServerStatusChange(nome, ip, isOnline) {
+                if (!csrfToken) {
+                    console.warn('CSRF token non disponibile');
+                    return;
+                }
+
                 try {
                     await fetch('/Home/NotifyTelegramOfStatusChange', {
                         method: 'POST',
@@ -564,84 +771,252 @@
                             'Content-Type': 'application/json',
                             'RequestVerificationToken': csrfToken
                         },
-                        body: JSON.stringify({ NomeMacchina: nome, IpAddress: ip, IsNowOnline: online })
+                        body: JSON.stringify({
+                            NomeMacchina: nome,
+                            IpAddress: ip,
+                            IsNowOnline: isOnline
+                        })
                     });
-                } catch (e) {
-                    console.error('Notify error:', e);
+                } catch (error) {
+                    console.error('Failed to notify server:', error);
                 }
             }
 
-            async function checkIp(ip, nome, rowId) {
-                const row = document.getElementById(rowId);
-                if (!row) return;
-                let isOnline = false;
-                try {
-                    const resp = await fetch(`/Home/PingIpAddress?ipAddress=${encodeURIComponent(ip)}`);
-                    if (resp.ok) {
-                        const data = await resp.json();
-                        isOnline = data.reachable;
+            // Update statistics
+            function updateStatistics() {
+                const rows = document.querySelectorAll('tr[data-ip]');
+                const total = rows.length;
+                let online = 0;
+                let offline = 0;
+
+                rows.forEach(row => {
+                    if (row.classList.contains('status-offline')) {
+                        offline++;
+                    } else {
+                        online++;
                     }
-                } catch {
-                    isOnline = false;
-                }
-                if (clientStatus[ip] !== isOnline) {
-                    await notifyServer(nome, ip, isOnline);
-                    clientStatus[ip] = isOnline;
-                }
-                row.classList.toggle('status-offline', !isOnline);
-            }
-
-            function doAllPings() {
-                if (!tbody) return;
-                tbody.querySelectorAll('tr[data-ip]').forEach(row => {
-                    checkIp(row.dataset.ip, row.dataset.nomeMacchina, row.id);
                 });
+
+                // Update DOM elements if they exist
+                const totalElement = document.getElementById('totalMachines');
+                const onlineElement = document.getElementById('onlineMachines');
+                const offlineElement = document.getElementById('offlineMachines');
+                const countElement = document.getElementById('machineCount');
+
+                if (totalElement) totalElement.textContent = total;
+                if (onlineElement) onlineElement.textContent = online;
+                if (offlineElement) offlineElement.textContent = offline;
+                if (countElement) countElement.textContent = total;
             }
 
-            if (tbody && tbody.querySelectorAll('tr[data-ip]').length) {
-                doAllPings();
-                setInterval(doAllPings, PING_INTERVAL);
-            }
-
-            // ---- Ordinamento Colonne ----
-            const table = document.getElementById('macchineTable');
-            if (table) {
-                const headers = table.querySelectorAll('thead th.sortable');
-                const tBody   = table.querySelector('tbody');
-
-                headers.forEach(header => {
-                    header.addEventListener('click', () => {
-                        const colIndex   = parseInt(header.dataset.column, 10);
-                        const sortType   = header.dataset.sortType;
-                        const asc        = !header.classList.contains('sorted-asc');
-                        headers.forEach(h => {
-                            h.classList.remove('sorted-asc','sorted-desc','sorted');
-                            h.querySelector('.sort-arrow').textContent = '';
-                        });
-                        header.classList.add('sorted', asc ? 'sorted-asc' : 'sorted-desc');
-                        header.querySelector('.sort-arrow').textContent = asc ? '▲' : '▼';
-
-                        const rows = Array.from(tBody.querySelectorAll('tr'));
-                        rows.sort((a,b) => {
-                            const aText = a.children[colIndex].textContent.trim();
-                            const bText = b.children[colIndex].textContent.trim();
-                            let cmp = 0;
-                            if (sortType === 'ip') {
-                                const A = aText.split('.').map(Number);
-                                const B = bText.split('.').map(Number);
-                                for (let i=0; i<4; i++) {
-                                    if (A[i] < B[i]) { cmp = -1; break; }
-                                    if (A[i] > B[i]) { cmp = 1; break; }
-                                }
-                            } else {
-                                cmp = aText.localeCompare(bText, undefined, { numeric: true, sensitivity: 'base' });
-                            }
-                            return asc ? cmp : -cmp;
-                        });
-                        rows.forEach(r => tBody.appendChild(r));
+            // Update last update time
+            function updateLastUpdateTime() {
+                const lastUpdateElement = document.getElementById('lastUpdate');
+                if (lastUpdateElement) {
+                    const now = new Date();
+                    const timeString = now.toLocaleTimeString('it-IT', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
                     });
+                    lastUpdateElement.textContent = timeString;
+                }
+            }
+
+            // ============================================
+            // UTILITY FUNCTIONS - ENHANCED
+            // ============================================
+            function initializeUtilityFunctions() {
+                console.log('Inizializzazione funzioni utility...');
+
+                // Add form submission handlers with better feedback
+                const addMachineForm = document.getElementById('addMachineForm');
+                if (addMachineForm) {
+                    addMachineForm.addEventListener('submit', function(e) {
+                        const submitBtn = this.querySelector('button[type="submit"]');
+                        const originalText = submitBtn.innerHTML;
+
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = `
+                            <div class="spinner-border spinner-border-sm me-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            Aggiungendo...
+                        `;
+
+                        // Reset button after 10 seconds as fallback
+                        setTimeout(() => {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                        }, 10000);
+                    });
+                }
+
+                const importForm = document.getElementById('importForm');
+                if (importForm) {
+                    importForm.addEventListener('submit', function(e) {
+                        const fileInput = document.getElementById('csvFile');
+                        if (!fileInput.files.length) {
+                            e.preventDefault();
+                            Toast.error('Seleziona un file CSV prima di procedere');
+                            return;
+                        }
+
+                        const submitBtn = this.querySelector('button[type="submit"]');
+                        const originalText = submitBtn.innerHTML;
+
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = `
+                            <div class="spinner-border spinner-border-sm me-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            Importando...
+                        `;
+
+                        setTimeout(() => {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                        }, 10000);
+                    });
+                }
+            }
+
+            // ============================================
+            // UTILITY FUNCTIONS
+            // ============================================
+
+            window.copyToClipboard = function(text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    Toast.success(`IP ${text} copiato negli appunti`, 'Copiato!', 2000);
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    Toast.success(`IP ${text} copiato negli appunti`, 'Copiato!', 2000);
+                });
+            };
+
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            function clearFormErrors(form) {
+                if (!form) return;
+                form.querySelectorAll('.text-danger').forEach(error => error.textContent = '');
+                form.querySelectorAll('.is-invalid').forEach(input => input.classList.remove('is-invalid'));
+            }
+
+            window.refreshAllMachines = function() {
+                const btn = event.target.closest('button');
+                const originalContent = btn.innerHTML;
+
+                btn.disabled = true;
+                btn.innerHTML = `
+                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    Aggiornando...
+                `;
+
+                doAllPings().then(() => {
+                    Toast.success('Stato macchine aggiornato', 'Aggiornamento completato');
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                }).catch(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                    Toast.error('Errore durante l\'aggiornamento');
+                });
+            };
+
+            // Sorting functions
+            window.toggleSort = function(column) {
+                const tbody = document.getElementById('macchineTableBody');
+                const rows = Array.from(tbody.querySelectorAll('tr[data-ip]'));
+
+                // Toggle sort order
+                sortOrder[column] = sortOrder[column] === 'asc' ? 'desc' : 'asc';
+
+                rows.sort((a, b) => {
+                    let aValue, bValue;
+
+                    if (column === 'name') {
+                        aValue = a.dataset.nomeMacchina.toLowerCase();
+                        bValue = b.dataset.nomeMacchina.toLowerCase();
+                    } else if (column === 'ip') {
+                        aValue = a.dataset.ip.split('.').map(num => parseInt(num).toString().padStart(3, '0')).join('.');
+                        bValue = b.dataset.ip.split('.').map(num => parseInt(num).toString().padStart(3, '0')).join('.');
+                    }
+
+                    if (sortOrder[column] === 'asc') {
+                        return aValue.localeCompare(bValue);
+                    } else {
+                        return bValue.localeCompare(aValue);
+                    }
+                });
+
+                // Reorder rows
+                rows.forEach(row => tbody.appendChild(row));
+
+                // Update sort button indicators
+                updateSortIndicators(column);
+
+                Toast.info(`Tabella ordinata per ${column === 'name' ? 'nome' : 'IP'} (${sortOrder[column] === 'asc' ? 'crescente' : 'decrescente'})`, null, 2000);
+            };
+
+            function updateSortIndicators(activeColumn) {
+                document.querySelectorAll('.table-controls button').forEach(btn => {
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-outline');
+                });
+
+                const activeBtn = document.getElementById(`sort${activeColumn.charAt(0).toUpperCase() + activeColumn.slice(1)}`);
+                if (activeBtn) {
+                    activeBtn.classList.remove('btn-outline');
+                    activeBtn.classList.add('btn-primary');
+                }
+            }
+
+            // ============================================
+            // EXPORT FUNCTIONALITY - FIXED
+            // ============================================
+
+            // Fix export CSV link
+            const exportLink = document.querySelector('a[href*="ExportToCsv"]');
+            if (exportLink) {
+                exportLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+
+                    // Show loading toast
+                    const loadingToast = Toast.loading('Generazione file CSV in corso...', 'Esportazione');
+
+                    // Create a temporary link with current data
+                    const link = document.createElement('a');
+                    link.href = '/Home/ExportToCsv';
+                    link.download = `macchine_${new Date().toISOString().slice(0,10)}.csv`;
+
+                    // Trigger download
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    // Hide loading toast and show success
+                    setTimeout(() => {
+                        Toast.hide(loadingToast);
+                        Toast.success('File CSV esportato con successo!', 'Download avviato');
+                    }, 1000);
                 });
             }
+
+            console.log('Dashboard JavaScript inizializzato completamente');
         });
     </script>
 }

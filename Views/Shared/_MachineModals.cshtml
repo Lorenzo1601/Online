@@ -1,0 +1,405 @@
+﻿@model Online.Models.MacchinaEditModel
+
+<!-- Edit Machine Modal -->
+<div class="modal fade" id="editMacchinaModal" tabindex="-1" aria-labelledby="editMacchinaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-controller="Home" asp-action="Edit" method="post" id="editMacchinaForm">
+                @Html.AntiForgeryToken()
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editMacchinaModalLabel">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                            <path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
+                        </svg>
+                        Modifica Macchina
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <!-- Hidden fields for original values -->
+                    <input type="hidden" asp-for="OriginalNomeMacchina" id="editOriginalNomeMacchina" />
+                    <input type="hidden" asp-for="OriginalIP_Address" id="editOriginalIPAddress" />
+
+                    <div class="mb-4">
+                        <label for="editNomeMacchina" class="form-label">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                                <!-- Delete Confirmation Modal -->
+                                <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header" style="background: linear-gradient(135deg, var(--accent-red), var(--accent-red-hover)); border-color: var(--accent-red);">
+                                                <h5 class="modal-title" id="deleteConfirmModalLabel">
+                                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                                                        <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M14.5,9A1.5,1.5 0 0,1 16,10.5V13.5A1.5,1.5 0 0,1 14.5,15H14V16.5A1.5,1.5 0 0,1 12.5,18H11.5A1.5,1.5 0 0,1 10,16.5V15H9.5A1.5,1.5 0 0,1 8,13.5V10.5A1.5,1.5 0 0,1 9.5,9H14.5M9.5,10.5V13.5H14.5V10.5H9.5Z" />
+                                                    </svg>
+                                                    Conferma Eliminazione
+                                                </h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+
+                                            <div class="modal-body">
+                                                <div class="alert alert-warning d-flex align-items-center mb-4" style="background: var(--accent-orange-light); border-color: var(--accent-orange); color: var(--accent-orange);">
+                                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="me-3">
+                                                        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+                                                    </svg>
+                                                    <div>
+                                                        <strong>Attenzione!</strong> Questa azione è irreversibile.
+                                                    </div>
+                                                </div>
+
+                                                <p class="mb-3">Sei sicuro di voler eliminare la seguente macchina dal sistema?</p>
+
+                                                <div class="machine-details glass-card p-3" style="background: rgba(239, 68, 68, 0.05); border-color: var(--accent-red);">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="machine-icon me-3">
+                                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" class="text-danger">
+                                                                <path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z" />
+                                                            </svg>
+                                                        </div>
+                                                        <div>
+                                                            <div class="machine-name-delete fw-bold fs-5" id="deleteMachineNameDisplay">Nome Macchina</div>
+                                                            <div class="machine-ip-delete text-muted">
+                                                                <code class="ip-address" id="deleteMachineIpDisplay">IP Address</code>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="consequences mt-4">
+                                                    <h6 class="text-warning mb-2">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                                                            <path d="M11,15H13V17H11V15M11,7H13V13H11V7M12,2C6.47,2 2,6.5 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20Z" />
+                                                        </svg>
+                                                        Conseguenze dell'eliminazione:
+                                                    </h6>
+                                                    <ul class="text-muted small mb-0">
+                                                        <li>Tutti i dati storici di monitoraggio verranno persi</li>
+                                                        <li>Le notifiche Telegram per questa macchina cesseranno</li>
+                                                        <li>Eventuali ricette associate dovranno essere aggiornate manualmente</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                        <path d="M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z" />
+                                                    </svg>
+                                                    Annulla
+                                                </button>
+                                                <button type="button" class="btn btn-danger" id="confirmDeleteButton">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                        <path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
+                                                    </svg>
+                                                    Elimina Definitivamente
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <style>
+                                    /* Modal-specific styles */
+                                    .machine-preview .preview-name,
+                                    .machine-preview .preview-ip {
+                                        transition: all var(--transition-fast);
+                                    }
+
+                                    .machine-details {
+                                        border: 1px solid var(--primary-600);
+                                        border-radius: var(--radius-lg);
+                                    }
+
+                                    .consequences ul {
+                                        padding-left: 1.5rem;
+                                    }
+
+                                    .consequences li {
+                                        margin-bottom: 0.5rem;
+                                    }
+
+                                    .ip-validation-success {
+                                        color: var(--accent-green);
+                                        border-color: var(--accent-green) !important;
+                                        background-color: var(--accent-green-light) !important;
+                                    }
+
+                                    .ip-validation-error {
+                                        color: var(--accent-red);
+                                        border-color: var(--accent-red) !important;
+                                        background-color: var(--accent-red-light) !important;
+                                    }
+
+                                    .validation-spinner {
+                                        border: 2px solid var(--primary-600);
+                                        border-top: 2px solid var(--accent-blue);
+                                        border-radius: 50%;
+                                        width: 16px;
+                                        height: 16px;
+                                        animation: spin 1s linear infinite;
+                                        display: inline-block;
+                                        margin-right: 8px;
+                                    }
+                                </style>
+
+                                <script>
+                                    // Modal-specific JavaScript
+                                    document.addEventListener('DOMContentLoaded', function() {
+                                        initializeModalPreview();
+                                        initializeIPValidation();
+                                    });
+
+                                    // Initialize live preview in edit modal
+                                    function initializeModalPreview() {
+                                        const nameInput = document.getElementById('editNomeMacchina');
+                                        const ipInput = document.getElementById('editIPAddress');
+                                        const previewName = document.querySelector('.preview-name');
+                                        const previewIp = document.querySelector('.preview-ip');
+
+                                        if (nameInput && previewName) {
+                                            nameInput.addEventListener('input', function() {
+                                                const value = this.value.trim() || 'Nome macchina';
+                                                previewName.textContent = value;
+                                                previewName.style.transform = 'scale(1.02)';
+                                                setTimeout(() => {
+                                                    previewName.style.transform = 'scale(1)';
+                                                }, 200);
+                                            });
+                                        }
+
+                                        if (ipInput && previewIp) {
+                                            ipInput.addEventListener('input', function() {
+                                                const value = this.value.trim() || 'Non specificato';
+                                                previewIp.textContent = `IP: ${value}`;
+                                                previewIp.style.transform = 'scale(1.02)';
+                                                setTimeout(() => {
+                                                    previewIp.style.transform = 'scale(1)';
+                                                }, 200);
+                                            });
+                                        }
+                                    }
+
+                                    // Initialize IP validation
+                                    function initializeIPValidation() {
+                                        const ipInputs = document.querySelectorAll('input[type="text"][placeholder*="192.168"]');
+
+                                        ipInputs.forEach(input => {
+                                            input.addEventListener('blur', function() {
+                                                if (this.value.trim()) {
+                                                    validateIPFormat(this);
+                                                }
+                                            });
+
+                                            input.addEventListener('input', function() {
+                                                // Clear previous validation states
+                                                this.classList.remove('ip-validation-success', 'ip-validation-error');
+                                                const resultDiv = document.getElementById('ipValidationResult');
+                                                if (resultDiv) {
+                                                    resultDiv.innerHTML = '';
+                                                }
+                                            });
+                                        });
+                                    }
+
+                                    // Validate IP format
+                                    function validateIPFormat(input) {
+                                        const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+                                        const isValid = ipRegex.test(input.value.trim());
+
+                                        if (isValid) {
+                                            input.classList.add('ip-validation-success');
+                                            input.classList.remove('ip-validation-error');
+                                        } else {
+                                            input.classList.add('ip-validation-error');
+                                            input.classList.remove('ip-validation-success');
+
+                                            const resultDiv = document.getElementById('ipValidationResult');
+                                            if (resultDiv) {
+                                                resultDiv.innerHTML = `
+                                                    <div class="alert alert-danger d-flex align-items-center py-2">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                                                            <path d="M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z"/>
+                                                        </svg>
+                                                        Formato IP non valido
+                                                    </div>
+                                                `;
+                                            }
+                                        }
+                                    }
+
+                                    // Validate IP connectivity
+                                    async function validateIP(inputId) {
+                                        const input = document.getElementById(inputId);
+                                        const resultDiv = document.getElementById('ipValidationResult');
+                                        const validateBtn = event.target;
+
+                                        if (!input.value.trim()) {
+                                            Toast.warning('Inserisci un indirizzo IP prima di verificare la connessione');
+                                            return;
+                                        }
+
+                                        // Validate format first
+                                        validateIPFormat(input);
+                                        if (input.classList.contains('ip-validation-error')) {
+                                            return;
+                                        }
+
+                                        // Show loading state
+                                        const originalContent = validateBtn.innerHTML;
+                                        validateBtn.disabled = true;
+                                        validateBtn.innerHTML = '<div class="validation-spinner"></div>';
+
+                                        resultDiv.innerHTML = `
+                                            <div class="alert alert-info d-flex align-items-center py-2">
+                                                <div class="validation-spinner"></div>
+                                                Verifica connessione in corso...
+                                            </div>
+                                        `;
+
+                                        try {
+                                            const response = await fetch(`/Home/PingIpAddress?ipAddress=${encodeURIComponent(input.value.trim())}`);
+                                            const data = await response.json();
+
+                                            if (data.reachable) {
+                                                resultDiv.innerHTML = `
+                                                    <div class="alert alert-success d-flex align-items-center py-2">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                                                            <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/>
+                                                        </svg>
+                                                        Macchina raggiungibile e online
+                                                    </div>
+                                                `;
+                                                Toast.success('Macchina raggiungibile', 'Connessione verificata');
+                                            } else {
+                                                resultDiv.innerHTML = `
+                                                    <div class="alert alert-warning d-flex align-items-center py-2">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                                                            <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                                                        </svg>
+                                                        Macchina non raggiungibile (${data.error || 'Timeout'})
+                                                    </div>
+                                                `;
+                                                Toast.warning('Macchina non raggiungibile', 'Verifica l\'indirizzo IP');
+                                            }
+                                        } catch (error) {
+                                            resultDiv.innerHTML = `
+                                                <div class="alert alert-danger d-flex align-items-center py-2">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                                                        <path d="M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z"/>
+                                                    </svg>
+                                                    Errore durante la verifica della connessione
+                                                </div>
+                                            `;
+                                            Toast.error('Errore durante la verifica', 'Problemi di connessione');
+                                        } finally {
+                                            validateBtn.disabled = false;
+                                            validateBtn.innerHTML = originalContent;
+                                        }
+                                    }
+                                </script>,14Z"/>
+                            </svg>
+                            Nome Macchina
+                        </label>
+                        <input asp-for="NomeMacchina"
+                               class="form-control"
+                               id="editNomeMacchina"
+                               placeholder="es. Pressa Idraulica 1" />
+                        <span asp-validation-for="NomeMacchina" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="editIPAddress" class="form-label">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                                <path d="M4.93,4.93C3.12,6.74 2,9.24 2,12C2,14.76 3.12,17.26 4.93,19.07L6.34,17.66C4.89,16.22 4,14.22 4,12C4,9.79 4.89,7.78 6.34,6.34L4.93,4.93M19.07,4.93L17.66,6.34C19.11,7.78 20,9.79 20,12C20,14.22 19.11,16.22 17.66,17.66L19.07,19.07C20.88,17.26 22,14.76 22,12C22,9.24 20.88,6.74 19.07,4.93M7.76,7.76C6.67,8.85 6,10.35 6,12C6,13.65 6.67,15.15 7.76,16.24L9.17,14.83C8.45,14.11 8,13.11 8,12C8,10.89 8.45,9.89 9.17,9.17L7.76,7.76M16.24,7.76L14.83,9.17C15.55,9.89 16,10.89 16,12C16,13.11 15.55,14.11 14.83,14.83L16.24,16.24C17.33,15.15 18,13.65 18,12C18,10.35 17.33,8.85 16.24,7.76M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10Z" />
+                            </svg>
+                            Indirizzo IP
+                        </label>
+                        <div class="input-group">
+                            <input asp-for="IP_Address"
+                                   class="form-control"
+                                   id="editIPAddress"
+                                   placeholder="192.168.1.100" />
+                            <button class="btn btn-outline" type="button" onclick="validateIP('editIPAddress')" title="Verifica connessione">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <span asp-validation-for="IP_Address" class="text-danger"></span>
+                        <div id="ipValidationResult" class="mt-2"></div>
+                    </div>
+
+                    <!-- Machine Details Preview -->
+                    <div class="machine-preview glass-card p-3 mb-3" style="background: rgba(59, 130, 246, 0.05);">
+                        <h6 class="mb-2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                                <path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
+                            </svg>
+                            Anteprima Macchina
+                        </h6>
+                        <div class="d-flex align-items-center">
+                            <div class="machine-icon me-3">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="text-primary">
+                                    <path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="preview-name fw-bold">Nome macchina</div>
+                                <div class="preview-ip text-muted">IP: Non specificato</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z" />
+                        </svg>
+                        Annulla
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
+                        </svg>
+                        Salva Modifiche
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--accent-red), var(--accent-red-hover)); border-color: var(--accent-red);">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="me-2">
+                        <path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M14.5,9A1.5,1.5 0 0,1 16,10.5V13.5A1.5,1.5 0 0,1 14.5,15H14V16.5A1.5,1.5 0 0,1 12.5,18H11.5A1.5,1.5 0 0,1 10,16.5V15H9.5A1.5,1.5 0 0,1 8,13.5V10.5A1.5,1.5 0 0,1 9.5,9H14.5M9.5,10.5V13.5H14.5V10.5H9.5Z" />
+                    </svg>
+                    Conferma Eliminazione
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="alert alert-warning d-flex align-items-center mb-4" style="background: var(--accent-orange-light); border-color: var(--accent-orange); color: var(--accent-orange);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="me-3">
+                        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+                    </svg>
+                    <div>
+                        <strong>Attenzione!</strong> Questa azione è irreversibile.
+                    </div>
+                </div>
+
+                <p class="mb-3">Sei sicuro di voler eliminare la seguente macchina dal sistema?</p>
+
+                <div class="machine-details glass-card p-3" style="background: rgba(239, 68, 68, 0.05); border-color: var(--accent-red);">
+                    <div class="d-flex align-items-center">
+                        <div class="machine-icon me-3">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" class="text-danger">
+                                <path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4
