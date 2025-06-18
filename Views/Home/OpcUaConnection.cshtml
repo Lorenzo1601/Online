@@ -4,8 +4,8 @@
     ViewData["Title"] = "Dashboard Connessioni OPC UA";
 }
 <head>
-    <!-- CORREZIONE: 'xintegrity' corretto in 'integrity' per permettere il caricamento delle icone -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- CORREZIONE: 'integrity' corretto per permettere il caricamento delle icone -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <style>
@@ -69,6 +69,7 @@
         text-align: center;
         color: #b0b0b0;
         cursor: pointer;
+        transition: transform 0.2s ease;
     }
 
         .node-toggle-icon.expanded {
@@ -194,6 +195,15 @@
     .modal-footer {
         border-top-color: #444;
     }
+
+    /* Stile aggiuntivo per il pulsante toggle */
+    .card-toggle-btn {
+        transition: transform 0.2s ease;
+    }
+
+        .card-toggle-btn i {
+            transition: transform 0.2s ease;
+        }
 </style>
 
 <h1 class="display-4 text-center">@ViewData["Title"]</h1>
@@ -236,7 +246,7 @@
                             <input type="hidden" name="nomeMacchina" value="@server.NomeMacchina" />
                             <button type="button" class="btn btn-sm btn-outline-danger btn-delete" title="Elimina Connessione"><i class="fas fa-trash-alt"></i></button>
                         </form>
-                        <button class="btn btn-sm btn-outline-secondary ms-2 card-toggle-btn" data-bs-toggle="collapse" data-bs-target="#@cardId" title="Riduci/Espandi" aria-expanded="true">
+                        <button class="btn btn-sm btn-outline-secondary ms-2 card-toggle-btn" data-target="#@cardId" title="Riduci/Espandi" aria-expanded="true">
                             <i class="fas fa-chevron-up"></i>
                         </button>
                     </div>
@@ -532,16 +542,40 @@
                 browseNode(machineName, null, $treeContainer);
             });
 
-            // --- CODICE CORRETTO E ROBUSTO PER IL TOGGLE DELLA CARD ---
-            // Usiamo la delegazione degli eventi, che è più robusta.
-            // Ascoltiamo gli eventi di Bootstrap per cambiare l'icona in modo affidabile,
-            // evitando conflitti con l'attributo data-bs-toggle.
-            $('body').on('show.bs.collapse', '.collapse', function () {
-                // Quando una sezione sta per essere mostrata, trova il suo pulsante di controllo e imposta l'icona "su"
-                $(`button[data-bs-target="#${this.id}"]`).find('i.fas').removeClass('fa-chevron-down').addClass('fa-chevron-up');
-            }).on('hide.bs.collapse', '.collapse', function () {
-                // Quando una sezione sta per essere nascosta, trova il suo pulsante di controllo e imposta l'icona "giù"
-                $(`button[data-bs-target="#${this.id}"]`).find('i.fas').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+            // --- CODICE CORRETTO PER IL TOGGLE DELLA CARD ---
+            // Soluzione più robusta per il toggle
+            // Inizializza lo stato delle icone all'avvio
+            $('.card-toggle-btn').each(function() {
+                const targetId = $(this).data('target');
+                const isExpanded = $(targetId).hasClass('show');
+                $(this).find('i').removeClass('fa-chevron-up fa-chevron-down')
+                    .addClass(isExpanded ? 'fa-chevron-up' : 'fa-chevron-down');
+            });
+
+            // Gestisce il click sul pulsante toggle
+            $(document).on('click', '.card-toggle-btn', function(e) {
+                e.preventDefault();
+                const $button = $(this);
+                const targetId = $button.data('target');
+                const $target = $(targetId);
+
+                // Toggle manuale del collapse
+                if ($target.hasClass('show')) {
+                    $target.collapse('hide');
+                } else {
+                    $target.collapse('show');
+                }
+            });
+
+            // Ascolta gli eventi di Bootstrap per aggiornare l'icona
+            $(document).on('shown.bs.collapse', '.collapse', function () {
+                const $button = $(`button[data-target="#${this.id}"]`);
+                $button.find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+            });
+
+            $(document).on('hidden.bs.collapse', '.collapse', function () {
+                const $button = $(`button[data-target="#${this.id}"]`);
+                $button.find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
             });
 
             $('body').on('click', '.node-toggle-icon', function() {
