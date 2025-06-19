@@ -97,13 +97,23 @@ L'applicazione sarà disponibile agli indirizzi specificati nel file Properties/
 📁 Struttura del Progetto
 /
 ├── Controllers/        # Gestiscono le richieste HTTP e la logica delle pagine
+
 ├── Data/               # Contiene il DbContext per Entity Framework
+
 ├── DB/                 # Contiene lo script SQL per la creazione del database
+
 ├── Models/             # Classi che rappresentano i dati e i ViewModel
+
 ├── Properties/         # Impostazioni di avvio
+
 ├── Views/              # Pagine Razor (CSHTML) per l'interfaccia utente
+
 ├── wwwroot/            # File statici (CSS, JS, immagini, librerie)
+
 ├── DataCleanUpService.cs   # Servizio per la pulizia periodica dei dati
+
 ├── MonitoringConfigService.cs # Servizio per l'aggiornamento dinamico della config
+
 ├── OpcUaService.cs     # Servizio principale per la comunicazione OPC UA
+
 └── Program.cs          # Punto di ingresso dell'applicazione e configurazione dei servizi
