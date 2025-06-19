@@ -4,20 +4,28 @@
 
 1. Scopo del Progetto
 Lo scopo principale del progetto è creare un'applicazione web per il monitoraggio in tempo reale di macchinari industriali tramite il protocollo OPC UA. L'applicazione consente di:
+
 •	Configurare la connessione a un server OPC UA.
+
 •	Selezionare i nodi (variabili) del server OPC UA da monitorare.
+
 •	Registrare i dati provenienti da questi nodi in un database.
+
 •	Visualizzare i dati storici in forma di grafici e tabelle.
+
 •	Gestire "ricette" o set di parametri da inviare ai macchinari.
+
 •	Configurare la pulizia automatica dei dati storici per gestire lo spazio su disco.
+
 L'applicazione è costruita utilizzando ASP.NET Core MVC, con un backend in C# e un frontend basato su Razor Pages, HTML, CSS e JavaScript (con jQuery e Bootstrap).
-2. Architettura del Progetto
+
+3. Architettura del Progetto
 Il progetto segue un'architettura Model-View-Controller (MVC), tipica delle applicazioni ASP.NET Core.
 •	Model: Le classi in C# che rappresentano i dati dell'applicazione (es. Macchina, Ricetta, MacchinaOpcUaLog) e i modelli per le viste (es. IndexViewModel). Si trovano principalmente nella directory Models/.
 •	View: I file .cshtml che definiscono l'interfaccia utente. Si trovano nella directory Views/.
 •	Controller: Le classi in C# che gestiscono le richieste HTTP, interagiscono con i modelli e restituiscono le viste. Si trovano nella directory Controllers/.
 Oltre al pattern MVC, il progetto fa uso di Servizi per incapsulare la logica di business principale, come la comunicazione OPC UA e la pulizia dei dati.
-3. Componenti Principali
+4. Componenti Principali
 3.1. Backend
 •	Program.cs: Punto di ingresso dell'applicazione. Qui vengono configurati e registrati i servizi essenziali:
 o	DbContext: Configura Entity Framework Core per la connessione al database MySQL (ApplicationDbContext).
@@ -59,7 +67,7 @@ o	js/site.js: Script JavaScript generici per il sito.
 o	js/Ricette.js: Logica JavaScript specifica per la gestione dinamica delle ricette nella pagina Ricette.cshtml.
 o	css/site.css: Fogli di stile personalizzati.
 o	lib/: Contiene le librerie client-side come Bootstrap e jQuery.
-4. Funzionalità Chiave
+5. Funzionalità Chiave
 1.	Configurazione Dinamica: L'applicazione permette di aggiungere nuove macchine e specificare i nodi OPC UA da monitorare direttamente dall'interfaccia web. Queste configurazioni sono salvate nel database e caricate dinamicamente dal OpcUaService.
 2.	Monitoraggio in Tempo Reale: Il OpcUaService si sottoscrive ai cambiamenti di valore dei nodi OPC UA e li registra immediatamente nel database, fornendo un monitoraggio continuo.
 3.	Visualizzazione Dati Storici: La sezione "Storico" permette agli utenti di analizzare le performance passate dei macchinari tramite grafici interattivi.
