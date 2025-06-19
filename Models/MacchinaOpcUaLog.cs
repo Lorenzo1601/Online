@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace online.Models
 {
-    [Table("macchineopcua")]
+    [Table("macchinestorico")]
     public class MacchinaOpcUaLog
     {
         // La chiave primaria è composta e viene definita in ApplicationDbContext.cs

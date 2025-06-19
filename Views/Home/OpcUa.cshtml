@@ -53,11 +53,9 @@
         color: #b0b0b0;
     }
 
-    /* --- INIZIO MODIFICA COLORE --- */
     .form-text {
         color: #a0a0a0; /* Colore più chiaro per il testo di aiuto */
     }
-    /* --- FINE MODIFICA COLORE --- */
 
     .btn-primary {
         background-color: #0d6efd;
@@ -102,7 +100,6 @@
             color: #1a1a1a;
         }
 
-    /* --- INIZIO CORREZIONE COLORI --- */
     .settings-card .card-body h5 {
         color: #e0e0e0; /* Bianco per i titoli di sezione */
         margin-top: 1rem;
@@ -113,7 +110,6 @@
     .settings-card .card-footer strong {
         color: #ffc107; /* Giallo ambrato per la nota importante */
     }
-    /* --- FINE CORREZIONE COLORI --- */
 </style>
 
 <h1 class="display-4 text-center">@ViewData["Title"]</h1>
@@ -150,7 +146,7 @@
             </div>
         </div>
 
-        <!-- INIZIO SEZIONE RIPRISTINATA: Impostazioni Pulizia DB -->
+        <!-- Impostazioni Pulizia DB -->
         <div class="card shadow-sm mt-4 settings-card">
             <div class="card-header collapsible-header" id="toggle-settings-header">
                 <h5 class="mb-0">Impostazioni di Pulizia del Database</h5>
@@ -166,7 +162,8 @@
                     <div class="alert alert-danger">@TempData["ErrorMessageSettings"]</div>
                 }
 
-                <form asp-controller="Settings" asp-action="SaveSettings" method="post">
+                <!-- MODIFICA QUI: asp-controller cambiato da "Settings" a "Home" -->
+                <form asp-controller="Home" asp-action="SaveSettings" method="post">
                     @Html.AntiForgeryToken()
                     <h5>Periodo di Conservazione Dati</h5>
                     <p class="text-muted">I log più vecchi di questo periodo verranno eliminati.</p>
@@ -187,7 +184,6 @@
             </div>
             <div class="card-footer" style="display: none;"><strong>Nota: Il riavvio dell'applicazione è necessario per applicare le nuove impostazioni.</strong></div>
         </div>
-        <!-- FINE SEZIONE RIPRISTINATA -->
 
         <div class="text-center mt-4">
             <a asp-action="Connection" asp-controller="OpcUa" class="btn btn-secondary">
@@ -199,12 +195,17 @@
 
 @section Scripts {
     <script>
+        // Assicurati che jQuery sia caricato prima di questo script
         $(document).ready(function() {
-            // Logica per rendere la card delle impostazioni collassabile
             $('#toggle-settings-header').on('click', function() {
                 $(this).nextAll('.card-body, .card-footer').slideToggle();
                 $('#settings-toggle-icon').toggleClass('collapsed');
             });
+
+            // Mostra la sezione se c'è un messaggio di errore o successo, per far vedere il risultato all'utente
+            if ($('.alert-success, .alert-danger').length) {
+                $('#toggle-settings-header').click();
+            }
         });
     </script>
     @{

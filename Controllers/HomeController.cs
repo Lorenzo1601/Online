@@ -17,6 +17,8 @@ using Microsoft.AspNetCore.Hosting;
 using System.Net.NetworkInformation;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+
 // Assicurati che il namespace del tuo servizio OPC UA sia referenziato
 // Esempio: using Online;
 
@@ -62,6 +64,17 @@ namespace Online.Controllers
     public class InviaRicettaModel
     {
         public string NomeRicetta { get; set; }
+    }
+
+    // Questo modello dovrebbe idealmente trovarsi nella cartella Models (es. Online.Models)
+    // ma viene aggiunto qui per completezza.
+    public class SettingsViewModel
+    {
+        public int RetentionDays { get; set; }
+        public int RetentionHours { get; set; }
+        public int RetentionMinutes { get; set; }
+        public int CleanupIntervalHours { get; set; }
+        public int CleanupIntervalMinutes { get; set; }
     }
 
 
@@ -170,10 +183,19 @@ namespace Online.Controllers
                 try
                 {
                     var existingMacchina = await _context.Macchine
-                        .FirstOrDefaultAsync(m => m.NomeMacchina == inputModel.NomeMacchina && m.IP_Address == inputModel.IP_Address);
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(m => m.NomeMacchina == inputModel.NomeMacchina || m.IP_Address == inputModel.IP_Address);
+
                     if (existingMacchina != null)
                     {
-                        TempData["ErrorMessage"] = "Una macchina con questo Nome e Indirizzo IP esiste già.";
+                        if (existingMacchina.NomeMacchina == inputModel.NomeMacchina)
+                        {
+                            TempData["ErrorMessage"] = $"Una macchina con il nome '{inputModel.NomeMacchina}' esiste già.";
+                        }
+                        else
+                        {
+                            TempData["ErrorMessage"] = $"Una macchina con l'indirizzo IP '{inputModel.IP_Address}' esiste già.";
+                        }
                     }
                     else
                     {
@@ -181,13 +203,30 @@ namespace Online.Controllers
                         _context.Add(macchina);
                         await _context.SaveChangesAsync();
                         TempData["SuccessMessage"] = "Macchina aggiunta con successo!";
-                        lock (_statusLock) { _lastKnownMachineServerStatus.Remove(macchina.IP_Address); }
+
+                        // CORREZIONE: Forza un controllo dello stato e una notifica per la nuova macchina
+                        _logger.LogInformation("Forzo il reset dello stato per la nuova macchina {IPAddress} per inviare notifica iniziale.", macchina.IP_Address);
+                        lock (_statusLock)
+                        {
+                            _lastKnownMachineServerStatus.Remove(macchina.IP_Address);
+                        }
+                        // NOTA: il check dello stato avverrà al prossimo ping dal client-side, che noterà l'assenza
+                        // di uno stato salvato e invierà una notifica.
+
                         return RedirectToAction(nameof(Index));
                     }
                 }
-                catch (Exception ex) { TempData["ErrorMessage"] = "Errore durante l'aggiunta: " + ex.Message; _logger.LogError(ex, "Errore in Create"); }
+                catch (Exception ex)
+                {
+                    TempData["ErrorMessage"] = "Errore durante l'aggiunta: " + ex.Message;
+                    _logger.LogError(ex, "Errore in Create");
+                }
             }
-            else { TempData["ErrorMessage"] = "Errore nei dati inseriti per la nuova macchina."; }
+            else
+            {
+                TempData["ErrorMessage"] = "Errore nei dati inseriti per la nuova macchina.";
+            }
+
             var macchineList = await _context.Macchine.ToListAsync();
             var viewModel = new IndexViewModel { Macchine = macchineList, NuovaMacchina = inputModel };
             return View("Index", viewModel);
@@ -467,48 +506,120 @@ namespace Online.Controllers
             return View();
         }
 
-        public async Task<IActionResult> Storico(string nomeMacchina, string searchString, DateTime? dataInizio, DateTime? dataFine)
+        // --- METODO STORICO MODIFICATO PER PAGINAZIONE / INFINITE SCROLL ---
+        public async Task<IActionResult> Storico(string nomeMacchina, string searchString, DateTime? dataInizio, DateTime? dataFine, int page = 1)
         {
-            _logger.LogInformation("Caricamento pagina Storico con filtri: Macchina={NomeMacchina}, Ricerca={SearchString}, Da={DataInizio}, A={DataFine}", nomeMacchina, searchString, dataInizio, dataFine);
+            _logger.LogInformation("Caricamento pagina Storico con filtri: Macchina={NomeMacchina}, Ricerca={SearchString}, Da={DataInizio}, A={DataFine}, Pagina={Page}",
+                nomeMacchina, searchString, dataInizio, dataFine, page);
 
+            // Mantiene i filtri per la view
             ViewData["CurrentFilter"] = searchString;
             ViewData["SelectedMacchina"] = nomeMacchina;
             ViewData["DataInizio"] = dataInizio.HasValue ? dataInizio.Value.ToString("yyyy-MM-ddTHH:mm") : "";
             ViewData["DataFine"] = dataFine.HasValue ? dataFine.Value.ToString("yyyy-MM-ddTHH:mm") : "";
 
+            // Carica la lista delle macchine per il dropdown del filtro
             var macchineList = await _context.Connessioni
-                                            .Select(c => c.NomeMacchina)
-                                            .Distinct()
-                                            .OrderBy(nome => nome)
-                                            .ToListAsync();
+                .Select(c => c.NomeMacchina)
+                .Distinct()
+                .OrderBy(nome => nome)
+                .ToListAsync();
             ViewData["Macchine"] = macchineList;
 
             var logsQuery = _context.MacchineOpcUaLog.AsQueryable();
 
+            // Applica i filtri
             if (!string.IsNullOrEmpty(nomeMacchina))
             {
                 logsQuery = logsQuery.Where(l => l.NomeMacchina == nomeMacchina);
             }
-
             if (!string.IsNullOrEmpty(searchString))
             {
                 logsQuery = logsQuery.Where(l => l.Nome.Contains(searchString));
             }
-
             if (dataInizio.HasValue)
             {
                 logsQuery = logsQuery.Where(l => l.Timestamp >= dataInizio.Value);
             }
-
             if (dataFine.HasValue)
             {
                 logsQuery = logsQuery.Where(l => l.Timestamp <= dataFine.Value);
             }
 
-            var filteredLogs = await logsQuery.OrderByDescending(l => l.Timestamp).ToListAsync();
+            // --- LOGICA DI PAGINAZIONE ---
+            const int pageSize = 50; // Numero di record per pagina
+            var totalRecords = await logsQuery.CountAsync(); // Conteggio totale record dopo i filtri
 
+            // Se non ci sono record, totalPages deve essere 1 per evitare divisioni per zero e mostrare la pagina vuota
+            var totalPages = totalRecords > 0 ? (int)Math.Ceiling(totalRecords / (double)pageSize) : 1;
+
+            // Assicura che il numero di pagina sia valido
+            page = Math.Max(1, Math.Min(page, totalPages));
+
+            // Passa i dati di paginazione alla View
+            ViewData["PageNumber"] = page;
+            ViewData["TotalPages"] = totalPages;
+
+            // Applica ordinamento e paginazione alla query
+            var filteredLogs = await logsQuery
+                .OrderByDescending(l => l.Timestamp)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // Restituisce la view con i dati paginati.
+            // Lo script di infinite scroll si aspetta l'intera pagina, quindi non c'è bisogno di controllare se è una richiesta AJAX qui.
             return View(filteredLogs);
         }
+
+        #region Settings
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveSettings(SettingsViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["ErrorMessageSettings"] = "I dati forniti per le impostazioni non sono validi.";
+                return RedirectToAction("OpcUa");
+            }
+
+            try
+            {
+                var appSettingsPath = Path.Combine(_hostingEnvironment.ContentRootPath, "appsettings.json");
+                var json = await System.IO.File.ReadAllTextAsync(appSettingsPath);
+
+                // Usa System.Text.Json.Nodes per analizzare e modificare
+                var jsonNode = JsonNode.Parse(json);
+
+                // Assicura che la sezione CleanupSettings esista
+                if (jsonNode["CleanupSettings"] == null)
+                {
+                    jsonNode["CleanupSettings"] = new JsonObject();
+                }
+
+                // Aggiorna i valori
+                jsonNode["CleanupSettings"]["RetentionDays"] = model.RetentionDays;
+                jsonNode["CleanupSettings"]["RetentionHours"] = model.RetentionHours;
+                jsonNode["CleanupSettings"]["RetentionMinutes"] = model.RetentionMinutes;
+                jsonNode["CleanupSettings"]["CleanupIntervalHours"] = model.CleanupIntervalHours;
+                jsonNode["CleanupSettings"]["CleanupIntervalMinutes"] = model.CleanupIntervalMinutes;
+
+                // Scrivi il JSON aggiornato di nuovo nel file
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                await System.IO.File.WriteAllTextAsync(appSettingsPath, jsonNode.ToJsonString(options));
+
+                TempData["SuccessMessageSettings"] = "Impostazioni salvate con successo. Riavviare l'applicazione per renderle effettive.";
+                _logger.LogInformation("Impostazioni di pulizia del database salvate su appsettings.json.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Errore durante il salvataggio delle impostazioni di pulizia.");
+                TempData["ErrorMessageSettings"] = "Si è verificato un errore durante il salvataggio delle impostazioni.";
+            }
+
+            return RedirectToAction("OpcUa");
+        }
+        #endregion
 
         #region Ricette Actions
 
@@ -637,9 +748,9 @@ namespace Online.Controllers
                 return BadRequest();
             }
             var parametri = await _context.ParametriRicette
-                                        .Where(p => p.NomeRicetta == nomeRicetta)
-                                        .OrderBy(p => p.NomeTag)
-                                        .ToListAsync();
+                                            .Where(p => p.NomeRicetta == nomeRicetta)
+                                            .OrderBy(p => p.NomeTag)
+                                            .ToListAsync();
             return Ok(parametri);
         }
 
@@ -692,8 +803,8 @@ namespace Online.Controllers
             }
 
             var parametri = await _context.ParametriRicette
-                                        .Where(p => p.NomeRicetta == model.NomeRicetta)
-                                        .ToListAsync();
+                                            .Where(p => p.NomeRicetta == model.NomeRicetta)
+                                            .ToListAsync();
 
             if (!parametri.Any())
             {

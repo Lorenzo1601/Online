@@ -1,0 +1,35 @@
+Nome Grafico: ci
+--- Dati ---
+Timestamp: 2025-06-19 14:17, Valore: 3
+Timestamp: 2025-06-19 14:17, Valore: 32
+Timestamp: 2025-06-19 14:17, Valore: 71619.49
+Timestamp: 2025-06-19 14:17, Valore: 42
+Timestamp: 2025-06-19 14:17, Valore: 65066
+Timestamp: 2025-06-19 14:17, Valore: 65066
+Timestamp: 2025-06-19 14:17, Valore: 65066
+Timestamp: 2025-06-19 14:17, Valore: 65066
+Timestamp: 2025-06-19 14:17, Valore: 65066
+Timestamp: 2025-06-19 14:17, Valore: -470
+Timestamp: 2025-06-19 14:17, Valore: 71572.59999997074
+Timestamp: 2025-06-19 14:17, Valore: 19
+Timestamp: 2025-06-19 14:17, Valore: 42
+Timestamp: 2025-06-19 14:17, Valore: 65066
+Timestamp: 2025-06-19 14:17, Valore: 65066
+Timestamp: 2025-06-19 14:17, Valore: 65066
+Timestamp: 2025-06-19 14:17, Valore: 3
+Timestamp: 2025-06-19 14:17, Valore: 3
+Timestamp: 2025-06-19 14:17, Valore: 71607.375
+Timestamp: 2025-06-19 14:17, Valore: 31
+Timestamp: 2025-06-19 14:17, Valore: 65055
+Timestamp: 2025-06-19 14:17, Valore: 65055
+Timestamp: 2025-06-19 14:17, Valore: 65055
+Timestamp: 2025-06-19 14:17, Valore: 65055
+Timestamp: 2025-06-19 14:17, Valore: 65055
+Timestamp: 2025-06-19 14:17, Valore: -481
+Timestamp: 2025-06-19 14:17, Valore: 71560.49999997068
+Timestamp: 2025-06-19 14:17, Valore: 19
+Timestamp: 2025-06-19 14:17, Valore: 31
+Timestamp: 2025-06-19 14:17, Valore: 65055
+Timestamp: 2025-06-19 14:17, Valore: 65055
+Timestamp: 2025-06-19 14:17, Valore: 65055
+Timestamp: 2025-06-19 14:17, Valore: 3

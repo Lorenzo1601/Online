@@ -1,5 +1,0 @@
-Nome Grafico: PLC_Blocks_Dati_I40_RCV_TestComunicazione
---- Dati ---
-Timestamp: 2025-06-18 11:45, Valore: 100
-Timestamp: 2025-06-18 11:45, Valore: 50
-Timestamp: 2025-06-18 10:35, Valore: 800

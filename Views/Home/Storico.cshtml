@@ -1,4 +1,9 @@
 ﻿@model IEnumerable<online.Models.MacchinaOpcUaLog>
+@*
+    Per abilitare l'infinite scroll, è necessario che il Controller possa restituire
+    le pagine successive di dati, preferibilmente come PartialView o JSON.
+    La variabile `totalPages` è ancora necessaria per sapere quando interrompere il caricamento.
+*@
 @{
     ViewData["Title"] = "Storico Dati OPC UA";
     var macchine = ViewData["Macchine"] as IEnumerable<string> ?? new List<string>();
@@ -6,6 +11,10 @@
     var currentFilter = ViewData["CurrentFilter"] as string;
     var dataInizioFilter = ViewData["DataInizio"] as string;
     var dataFineFilter = ViewData["DataFine"] as string;
+
+    // --- VARIABILI PER L'INFINITE SCROLL ---
+    var pageNumber = (int)(ViewData["PageNumber"] ?? 1);
+    var totalPages = (int)(ViewData["TotalPages"] ?? 1);
 }
 
 <head>
@@ -119,6 +128,10 @@
         flex-shrink: 0;
     }
 
+    #loading-spinner {
+        color: #64b5f6; /* Blu per abbinare il tema */
+    }
+
 </style>
 
 <h1 class="display-4 text-center mb-4">@ViewData["Title"]</h1>
@@ -131,6 +144,7 @@
             </div>
             <div class="card-body">
                 <form asp-controller="Home" asp-action="Storico" method="get">
+                    @Html.AntiForgeryToken()
                     <div class="row g-3">
                         <div class="col-md-6 col-lg-3">
                             <label for="nomeMacchina" class="form-label"><strong>Seleziona Macchina</strong></label>
@@ -204,7 +218,7 @@
                             <th>Timestamp</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="table-body">
                         @if (Model != null && Model.Any())
                         {
                             @foreach (var item in Model)
@@ -226,6 +240,12 @@
                         }
                     </tbody>
                 </table>
+            </div>
+            <!-- INDICATORE DI CARICAMENTO PER INFINITE SCROLL -->
+            <div id="loading-spinner" class="text-center p-4" style="display: none;">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Caricamento...</span>
+                </div>
             </div>
         </div>
     </div>
@@ -255,8 +275,7 @@
         </div>
     </div>
 </div>
-
-<!-- NUOVO MODALE PER VISUALIZZARE I GRAFICI SALVATI -->
+<!-- MODALE PER VISUALIZZARE I GRAFICI SALVATI -->
 <div class="modal fade" id="viewChartModal" tabindex="-1" aria-labelledby="viewChartModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
@@ -291,6 +310,56 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
 
+            // --- LOGICA INFINITE SCROLL ---
+            let currentPage = @pageNumber;
+            const totalPages = @totalPages;
+            let isLoading = false;
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const tableBody = document.getElementById('table-body');
+
+            const loadMoreData = async () => {
+                if (currentPage >= totalPages || isLoading) {
+                    return;
+                }
+                isLoading = true;
+                loadingSpinner.style.display = 'block';
+                currentPage++;
+
+                const url = new URL(window.location.href);
+                url.searchParams.set('page', currentPage);
+
+                try {
+                    const response = await fetch(url.toString());
+                    const html = await response.text();
+
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newRows = doc.querySelectorAll('#table-body tr');
+
+                    if (newRows.length > 0) {
+                        newRows.forEach(row => {
+                            tableBody.appendChild(row);
+                        });
+                    } else {
+                         currentPage = totalPages;
+                    }
+                } catch (error) {
+                    console.error('Errore durante il caricamento di altri dati:', error);
+                    currentPage--;
+                } finally {
+                    isLoading = false;
+                    loadingSpinner.style.display = 'none';
+                }
+            };
+
+            window.addEventListener('scroll', () => {
+                const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+                if (clientHeight + scrollTop >= scrollHeight - 100) {
+                    loadMoreData();
+                }
+            });
+
+
             // --- LOGICA GENERAZIONE GRAFICO ---
             const generateChartBtn = document.getElementById('generateChartBtn');
             if (generateChartBtn) {
@@ -311,7 +380,7 @@
 
                     rows.forEach(row => {
                         const cells = row.getElementsByTagName('td');
-                        if (cells.length === 5 && cells[0].textContent) { // Controlla che la riga non sia vuota
+                        if (cells.length === 5 && cells[0].textContent) {
                             const timestamp = cells[4].innerText;
                             const valueText = cells[2].innerText.replace(',', '.');
                             const value = parseFloat(valueText);
@@ -329,10 +398,10 @@
                     myChart = new Chart(ctx, {
                         type: 'line',
                         data: {
-                            labels: labels,
+                            labels: labels.reverse(),
                             datasets: [{
                                 label: 'Valore',
-                                data: dataValues,
+                                data: dataValues.reverse(),
                                 borderColor: 'rgba(100, 181, 246, 1)',
                                 backgroundColor: 'rgba(100, 181, 246, 0.2)',
                                 borderWidth: 2,
@@ -359,11 +428,14 @@
                             return;
                         }
                         const payload = { ChartName: chartName, Data: chartDataForSave };
+
+                        // INIZIO CORREZIONE: Rimosso l'invio del RequestVerificationToken che causava l'errore.
                         fetch('/Home/SaveChartData', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload)
                         })
+                        // FINE CORREZIONE
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
@@ -398,6 +470,7 @@
                                 data.files.forEach(file => {
                                     const fileItem = document.createElement('div');
                                     fileItem.className = 'chart-file-item';
+
                                     const fileNameSpan = document.createElement('span');
                                     fileNameSpan.className = 'chart-file-name';
                                     fileNameSpan.textContent = file.replace('.txt', '');
@@ -465,6 +538,7 @@
                     savedChartsList.addEventListener('click', (e) => {
                         const viewTarget = e.target.closest('.chart-file-name');
                         const deleteTarget = e.target.closest('.delete-chart-btn');
+
                         if (viewTarget) {
                             const fileName = viewTarget.dataset.filename;
                             fetch(`/Home/GetChartDataFile?fileName=${encodeURIComponent(fileName)}`)
@@ -492,6 +566,7 @@
                                     if (result.success) {
                                         alert('File eliminato con successo.');
                                         deleteTarget.closest('.chart-file-item').remove();
+                                        if (savedChart) savedChart.destroy(); // Pulisce il canvas se il grafico eliminato era visualizzato
                                     } else {
                                         alert('Errore durante l\'eliminazione: ' + result.message);
                                     }
